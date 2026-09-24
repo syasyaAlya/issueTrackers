@@ -652,22 +652,30 @@
     .menu-btn svg { width: 18px; height: 18px; }
 
     .bottom-nav {
-      display: grid; grid-template-columns: repeat(6, 1fr);
+      display: grid; grid-template-columns: repeat(5, 1fr);
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
       background: var(--surface); border-top: 1px solid var(--border);
       padding-bottom: env(safe-area-inset-bottom);
       box-shadow: 0 -2px 12px rgba(16, 20, 30, .07);
     }
     .bn-item {
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
       border: 0; background: none; color: var(--muted);
-      padding: 8px 2px 7px; font-size: 10px; font-weight: 600;
-      min-height: 56px; cursor: pointer;
+      padding: 7px 2px 6px; font-size: 10px; font-weight: 600;
+      min-height: 58px; cursor: pointer;
     }
-    .bn-item svg { width: 20px; height: 20px; }
-    .bn-item span { line-height: 1; }
+    .bn-item svg { width: 19px; height: 19px; }
+    .bn-item > span:last-child { line-height: 1; }
+    /* The active tab gets a soft pill behind its icon, the way a native tab
+       bar does it, so the current view is obvious at a glance. */
+    .bn-ic {
+      display: grid; place-items: center;
+      width: 46px; height: 26px; border-radius: 999px;
+      transition: background .15s;
+    }
     .bn-item[aria-current="page"] { color: var(--accent); }
-    .bn-item:active { background: var(--surface-2); }
+    .bn-item[aria-current="page"] .bn-ic { background: var(--accent-soft); }
+    .bn-item:active .bn-ic { background: var(--surface-2); }
 
     /* leave room for the bar so nothing hides behind it */
     .main { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
@@ -1412,41 +1420,45 @@
   <!-- Mobile navigation: a bottom bar, the way a phone app does it. Only
        shown on small screens; the sidebar takes over on a desktop. -->
   <nav class="bottom-nav" aria-label="Main">
-    <button class="bn-item" id="bnMenuBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="M3 6h18M3 12h18M3 18h18"/>
-      </svg>
-      <span>Menu</span>
+    <button class="bn-item" id="bnMenuBtn" title="Everything else">
+      <span class="bn-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M3 6h18M3 12h18M3 18h18"/>
+        </svg>
+      </span>
+      <span>More</span>
     </button>
     <button class="bn-item" data-view="board" aria-current="page">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/>
-        <rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>
-      </svg>
+      <span class="bn-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/>
+          <rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>
+        </svg>
+      </span>
       <span>Dashboard</span>
     </button>
     <button class="bn-item" data-view="mine">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-      </svg>
+      <span class="bn-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      </span>
       <span>My reports</span>
     </button>
     <button class="bn-item" data-view="statistics">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/>
-      </svg>
+      <span class="bn-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/>
+        </svg>
+      </span>
       <span>Stats</span>
     </button>
-    <button class="bn-item" data-view="notifications">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>
-      </svg>
-      <span>Alerts</span>
-    </button>
     <button class="bn-item" data-view="profile">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-      </svg>
+      <span class="bn-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      </span>
       <span>Profile</span>
     </button>
   </nav>

@@ -22,9 +22,23 @@ cannot do, and the database (Row Level Security + triggers) rejects it anyway.
 | `PUBLISHING.md` | How to put it online for free — GitHub Pages or Vercel. |
 | `vercel.json` | Ready-made Vercel config (static site, no build step). |
 | `steps/` | Older tutorial versions of the tracker, kept for reference. |
+| `docs/` | `FLOWCHARTS.md` - the architecture and every process, as flowcharts. |
 
 `index.html` is also its own setup guide: the **Connect Supabase** button
 (banner or setup panel) shows the same SQL with a copy button.
+
+---
+
+## Documentation
+
+| Document | What it covers |
+| --- | --- |
+| [`docs/FLOWCHARTS.md`](docs/FLOWCHARTS.md) | The whole system as flowcharts: the architecture, roles and permissions, and every process from sign-up to backups. |
+| [`PUBLISHING.md`](PUBLISHING.md) | How to put it online for free. |
+| [`PRESENTATION.md`](PRESENTATION.md) | A slide-style overview. |
+
+The flowcharts render on GitHub on their own. Start there if you need to
+understand how the system works.
 
 ---
 
