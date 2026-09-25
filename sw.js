@@ -10,7 +10,7 @@
  *  network and are never served stale.
  * ========================================================================= */
 
-var CACHE = "issue-tracker-v2";
+var CACHE = "issue-tracker-v3";
 
 var SHELL = [
   "./",
