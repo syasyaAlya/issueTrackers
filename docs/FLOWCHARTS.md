@@ -386,17 +386,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["Open the app"] --> B["service worker caches the shell"]
+    A["Open the app"] --> B["manifest, real icons, and a service<br/>worker that handles fetches"]
     B --> C{"already installed?"}
-    C -- "yes" --> D["no Install button"]
-    C -- "no" --> E["Install button always shown"]
-    E --> F{"browser offers<br/>beforeinstallprompt?"}
-    F -- "yes" --> G["Install, Accept, done"]
-    F -- "no, Safari or Firefox" --> H["wait up to 2s, then<br/>explain the manual steps"]
+    C -- "yes" --> D["nothing to offer"]
+    C -- "no" --> E["the BROWSER offers its own install:<br/>address-bar icon on a desktop,<br/>'Install app' on Android,<br/>Share then Add to Home Screen on iOS"]
+    E --> F["installed"]
 
-    I["Later, with no network"] --> J["the cached shell still loads"]
-    J --> K["database actions fail<br/>with a clear message"]
+    G["Later, with no network"] --> H["the cached shell still loads"]
+    H --> I["database actions fail<br/>with a clear message"]
 ```
+
+> There is no install button in the app, and `beforeinstallprompt` is not
+> cancelled - cancelling it is what hides the browser's own offer.
 
 ---
 

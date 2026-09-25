@@ -290,10 +290,6 @@
     background: var(--surface-2); border-radius: 999px; padding: 1px 7px;
   }
   .nav-item[aria-current="page"] .count { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
-  /* Install is an action, not a view - colour it so it reads that way. */
-  .nav-item.install { color: var(--accent); }
-  .nav-item.install svg { color: var(--accent); }
-
   .sidebar .spacer { flex: 1; }
   .user-card {
     border: 1px solid var(--border); border-radius: 11px; padding: 11px;
@@ -754,11 +750,6 @@
       </div>
       <div class="msg info" id="demoHint" hidden></div>
 
-      <!-- Shown only when the app can be installed. Visible before signing in,
-           so someone can install it straight away. -->
-      <div class="auth-foot center">
-        <button class="linkbtn" type="button" id="installBtnAuth" hidden>Install this app</button>
-      </div>
     </section>
 
     <!-- register -->
@@ -942,15 +933,6 @@
         <span>Settings</span>
       </button>
 
-      <!-- Shown only when the app can actually be installed, and hidden again
-           once it has been. No data-view: it runs its own handler. -->
-      <button class="nav-item install" id="installBtn" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 3v12"/><path d="M7 10l5 5 5-5"/>
-          <path d="M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/>
-        </svg>
-        <span>Install app</span>
-      </button>
     </nav>
   </aside>
 
@@ -5350,118 +5332,20 @@ notify pgrst, 'reload schema';
   /* ==================================================================
      INSTALLING THE APP
      ------------------------------------------------------------------
-     Chrome, Edge and Android hand us a "beforeinstallprompt" event that we
-     can trigger from our own button. Safari has no such event, so there the
-     button explains what to tap instead. In both cases it disappears once
-     the app is installed, and never appears when it already is.
+     Nothing to do here on purpose. The app is installable - manifest, real
+     icons, and a service worker with a fetch handler - so the browser offers
+     its own install: the install icon in the address bar on a desktop,
+     "Install app" in the menu on Android, and Share then "Add to Home
+     Screen" on iOS.
+
+     There is deliberately no install button inside the app, and
+     beforeinstallprompt is NOT cancelled. Cancelling it is exactly what
+     suppresses the browser's own offer - and once that is suppressed, any
+     problem with a custom button leaves no way to install the app at all.
      ================================================================== */
-  var installPrompt = null;
-
-  function isStandalone() {
-    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
-           window.navigator.standalone === true;
-  }
-
-  function isIOS() {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  }
-
-  function refreshInstallButton() {
-    // Always offered, unless the app is already installed. Hiding it when the
-    // browser has no install prompt (Safari, Firefox) just made it look like
-    // the feature was missing - so instead the button always shows, and if
-    // there is no prompt it explains the manual route.
-    var show = !isStandalone();
-    ["installBtn", "installBtnAuth"].forEach(function (id) {
-      var b = el(id);
-      if (b) b.hidden = !show;
-    });
-    var navBtn = el("installBtn");
-    if (navBtn) navBtn.title = isStandalone() ? "Already installed" : "Add this app to your home screen";
-  }
-
-  window.addEventListener("beforeinstallprompt", function (e) {
-    e.preventDefault();                 // ask in our own time, from our own button
-    installPrompt = e;
-    refreshInstallButton();
-  });
-
   window.addEventListener("appinstalled", function () {
-    installPrompt = null;
-    refreshInstallButton();
     toast("App installed");
   });
-
-  if (window.matchMedia) {
-    try {
-      window.matchMedia("(display-mode: standalone)")
-        .addEventListener("change", refreshInstallButton);
-    } catch (e) { /* older browsers */ }
-  }
-
-  /* What to say when the browser has no install prompt of its own. */
-  function installHelp() {
-    var ua = navigator.userAgent;
-    if (/iPad|iPhone|iPod/.test(ua)) {
-      return "Install on iPhone / iPad\n\n" +
-             "1. Tap the Share button (the square with an arrow)\n" +
-             "2. Scroll down and tap \"Add to Home Screen\"\n" +
-             "3. Tap Add";
-    }
-    if (/Android/.test(ua)) {
-      return "Install on Android\n\n" +
-             "Open the browser menu (the three dots) and tap\n" +
-             "\"Install app\" or \"Add to Home screen\".";
-    }
-    if (/Firefox/i.test(ua)) {
-      return "Firefox cannot install web apps on desktop.\n\n" +
-             "Open this page in Chrome or Edge instead - an install icon then\n" +
-             "appears in the address bar.";
-    }
-    return "Install this app\n\n" +
-           "Look for the install icon in your browser's address bar, or open\n" +
-           "the browser menu and choose \"Install app\".";
-  }
-
-  /* Clicking before the browser has fired beforeinstallprompt used to show the
-     "look in your address bar" message immediately - even though the prompt
-     was about to arrive a moment later. So wait briefly for it first. */
-  function waitForInstallPrompt(timeoutMs) {
-    return new Promise(function (resolve) {
-      if (installPrompt) return resolve(installPrompt);
-
-      var settled = false;
-      function finish(value) {
-        if (settled) return;
-        settled = true;
-        resolve(value);
-      }
-
-      window.addEventListener("beforeinstallprompt", function () { finish(installPrompt); });
-      setTimeout(function () { finish(installPrompt); }, timeoutMs || 2000);
-    });
-  }
-
-  function doInstall() {
-    // A brief note, so the short wait does not look like nothing happened.
-    if (!installPrompt) toast("Looking for the install option…");
-
-    waitForInstallPrompt(2000).then(function (prompt) {
-      if (!prompt) { alert(installHelp()); return; }
-
-      prompt.prompt();
-      prompt.userChoice.then(function (choice) {
-        if (choice && choice.outcome === "accepted") toast("Installing…");
-        installPrompt = null;
-        refreshInstallButton();
-      });
-    });
-  }
-
-  el("installBtn").addEventListener("click", doInstall);
-  el("installBtnAuth").addEventListener("click", doInstall);
-
-  refreshInstallButton();
 
   /* ==================================================================
      START UP
