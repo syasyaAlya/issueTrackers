@@ -2496,6 +2496,30 @@ notify pgrst, 'reload schema';
       '<button class="btn primary" data-setup-open>Show the SQL to fix this</button></div>';
   }
 
+  /* Specifically "this function is not in the database". */
+  function isMissingFunction(e) {
+    return /Could not find the function|PGRST202/i.test(String((e && e.message) || e || ""));
+  }
+
+  /* True when the database is an older version than the app. Worked out once an
+     admin signs in, so the parts that need the newer schema can say so instead
+     of just failing - and so Delete can warn that it would be permanent. */
+  var schemaIsOld = false;
+
+  function checkSchema() {
+    if (!isAdmin()) return;
+    api.listBin().then(function () {
+      schemaIsOld = false;
+    }).catch(function (e) {
+      if (!isSchemaProblem(e.message)) return;
+      schemaIsOld = true;
+      var note = el("dbSetupNote");
+      if (note) {
+        note.textContent = "This database is missing part of the schema. Run the SQL above to finish the setup.";
+      }
+    });
+  }
+
   function redirectTo() {
     return (window.location.origin + window.location.pathname).replace(/index\.html$/, "");
   }
@@ -3031,10 +3055,17 @@ notify pgrst, 'reload schema';
       });
     },
 
-    /* Deleting only stamps the row now — the recycle bin is the way back. */
+    /* Deleting only stamps the row now - the recycle bin is the way back.
+       An older database has no soft delete at all, so fall back to removing
+       the row. The app asks first, and says plainly that it is permanent. */
     deleteIssue: function (id) {
       return sb.rpc("soft_delete_issue", { p_id: id }).then(function (res) {
         if (res.error) throw res.error;
+      }).catch(function (e) {
+        if (!isMissingFunction(e)) throw e;
+        return sb.from("issues").delete().eq("id", id).then(function (res2) {
+          if (res2.error) throw res2.error;
+        });
       });
     },
 
@@ -3313,6 +3344,7 @@ notify pgrst, 'reload schema';
     render();
     refresh();
     if (isAdmin()) refreshUsers();
+    if (isAdmin()) checkSchema();   // is this database an older version?
     startLiveUpdates();         // keep the board fresh, and raise notifications
   }
 
@@ -3666,8 +3698,15 @@ notify pgrst, 'reload schema';
       openModal(it);
     } else if (action === "delete") {
       if (!can("remove")) { toast("Only an administrator can delete issues."); return; }
-      if (confirm('Move "' + it.title + '" to the recycle bin?\n\nAn admin can put it back from there.')) {
-        mutate(api.deleteIssue(it.id), "Moved to the recycle bin");
+      // A database that has no recycle bin has no way back once it is gone,
+      // so say that plainly rather than pretending it can be recovered.
+      var warn = schemaIsOld
+        ? 'Delete "' + it.title + '" PERMANENTLY?\n\n' +
+          "This database has no recycle bin yet, so this cannot be undone.\n\n" +
+          "(Running the SQL in Settings > Database setup adds one.)"
+        : 'Move "' + it.title + '" to the recycle bin?\n\nAn admin can put it back from there.';
+      if (confirm(warn)) {
+        mutate(api.deleteIssue(it.id), schemaIsOld ? "Deleted permanently" : "Moved to the recycle bin");
       }
     }
   });
@@ -3865,7 +3904,15 @@ notify pgrst, 'reload schema';
 
     var btn = el("saveBtn");
     busy(btn, true, "Saving…");
-    var work = editingId ? api.updateIssue(editingId, payload) : api.createIssue(payload);
+    // An older database has no admin_note column. Rather than losing the whole
+    // edit because of the message, save the status and priority without it.
+    var work = editingId
+      ? api.updateIssue(editingId, payload).catch(function (ex) {
+          if (!/admin_note/i.test(ex.message || "")) throw ex;
+          toast("Message not saved - the database needs the schema update. The rest was saved.");
+          return api.updateIssue(editingId, { status: payload.status, priority: payload.priority });
+        })
+      : api.createIssue(payload);
 
     mutate(work, editingId ? "Changes saved" : "Issue reported")
       .then(function () { busy(btn, false); closeModal(); });
