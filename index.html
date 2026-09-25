@@ -1292,6 +1292,23 @@
         <h3>System status</h3>
         <dl class="kv" id="statusList"></dl>
       </section>
+
+      <!-- The setup SQL lives behind a button, and until now that button was
+           only inside the demo banner. So a connected database running an
+           older schema had no way to reach the SQL that fixes it. -->
+      <section class="card" id="dbSetupCard">
+        <h3>Database setup</h3>
+        <p class="card-sub">
+          The app needs its tables and its functions to exist in Supabase. If
+          anything here says the database is missing something, open this and
+          run the SQL again &mdash; it is safe to repeat, and it updates an
+          older database in place.
+        </p>
+        <div class="card-row">
+          <button class="btn" id="openSetupFromSettings">Show the setup SQL</button>
+          <span class="card-note" id="dbSetupNote"></span>
+        </div>
+      </section>
     </div>
 
     <!-- recycle bin (admin only) -->
@@ -2442,11 +2459,28 @@ end $$;
     if (/rate limit|too many|email.*limit/i.test(m)) return "Supabase is rate-limiting emails. Its built-in sender allows only a few per hour and every sign-up sends a confirmation email, so retrying makes it worse. Wait ~1 hour, or switch off \"Confirm email\" in Supabase (Authentication → Sign In / Providers → Email) while testing.";
     if (/valid email/i.test(m)) return "Please enter a valid email address.";
     if (/row-level security|permission denied/i.test(m)) return "You don't have permission to do that.";
-    if (/relation .* does not exist|schema cache/i.test(m)) return "Database tables are missing. Run supabase-schema.sql first (see Connect Supabase).";
+    // A missing FUNCTION and a missing TABLE both come back from PostgREST as
+    // "... in the schema cache", so the function has to be checked first -
+    // otherwise an out-of-date database function gets misreported as a
+    // missing table, which sends you looking in the wrong place.
+    if (/Could not find the function|PGRST202/i.test(m)) return "Your database is missing one of the app's functions, so it is an older schema. Open Settings, Database setup and run the SQL again - it is safe to repeat.";
+    if (/relation .* does not exist|Could not find the table|schema cache/i.test(m)) return "Database tables are missing. Run supabase-schema.sql first (see Settings, Database setup).";
     if (/issues_status_check|violates check constraint/i.test(m)) return "Your database doesn't accept the \"None\" status yet. Re-run supabase-schema.sql in Supabase (SQL Editor → New query → Run) — it's safe to repeat.";
     if (/column .* does not exist/i.test(m)) return "Your database is missing some newer profile columns. Re-run supabase-schema.sql in Supabase (SQL Editor → New query → Run) — it's safe to repeat.";
-    if (/Could not find the function|PGRST202/i.test(m)) return "This needs a newer database function. Re-run supabase-schema.sql in Supabase (SQL Editor → New query → Run) — it's safe to repeat.";
     return m || "Something went wrong. Please try again.";
+  }
+
+  /* Some failures just mean the database is an older version than the app.
+     Those are worth a button, because the answer is always "run that SQL
+     again" - and there is a panel holding exactly that SQL. */
+  function isSchemaProblem(message) {
+    return /Could not find the function|PGRST202|Could not find the table|relation .* does not exist|schema cache|column .* does not exist|issues_status_check|violates check constraint/i.test(String(message || ""));
+  }
+
+  function schemaProblemHtml(message) {
+    return '<div class="empty" style="border:0;background:transparent;">' +
+      '<p>' + esc(friendly(message)) + '</p>' +
+      '<button class="btn primary" data-setup-open>Show the SQL to fix this</button></div>';
   }
 
   function redirectTo() {
@@ -4062,8 +4096,10 @@ end $$;
       }).join("");
     }).catch(function (e) {
       el("backupCount").textContent = "0";
-      el("backupList").innerHTML = '<div class="empty" style="border:0;background:transparent;">' +
-        '<p>' + esc(friendly(e.message)) + '</p></div>';
+      el("backupList").innerHTML = isSchemaProblem(e.message)
+        ? schemaProblemHtml(e.message)
+        : '<div class="empty" style="border:0;background:transparent;">' +
+          '<p>' + esc(friendly(e.message)) + '</p></div>';
     });
   }
 
@@ -4165,8 +4201,10 @@ end $$;
 
       el("binNote").textContent = items.length + " deleted issue" + (items.length === 1 ? "" : "s") + ".";
     }).catch(function (e) {
-      el("binList").innerHTML = "";
-      el("binNote").textContent = friendly(e.message);
+      // An older database has no bin functions at all, so this is a dead end
+      // unless it offers the SQL that fixes it.
+      el("binList").innerHTML = isSchemaProblem(e.message) ? schemaProblemHtml(e.message) : "";
+      el("binNote").textContent = isSchemaProblem(e.message) ? "" : friendly(e.message);
     });
   }
 
@@ -5513,6 +5551,13 @@ end $$;
 
   function openSetup() { el("setupView").classList.add("open"); }
   el("setupFromBanner").addEventListener("click", openSetup);
+  el("openSetupFromSettings").addEventListener("click", openSetup);
+
+  // Any "show me the SQL" button anywhere in the app opens the same panel,
+  // including the ones injected into an error state.
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("[data-setup-open]")) openSetup();
+  });
   el("setupClose").addEventListener("click", function () { el("setupView").classList.remove("open"); });
   el("setupView").addEventListener("mousedown", function (e) {
     if (e.target === el("setupView")) el("setupView").classList.remove("open");
