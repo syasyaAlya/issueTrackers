@@ -329,23 +329,47 @@ flowchart TD
 
 ---
 
-**16. Notifications** - derived, not stored.
+**16. Notifications** - the in-app bell, and the device notification.
 
 ```mermaid
-flowchart LR
-    A["issues[]"] --> B["for each issue"]
-    B --> C["new issue reported"]
-    B --> D["marked as done"]
-    B --> E["high priority, still open"]
-    B --> F["message from an admin"]
-    C --> G["filter by the user's<br/>notification preferences"]
-    D --> G
-    E --> G
-    F --> G
-    G --> H["newest first"]
-    H --> I["unread = newer than<br/>notifications_seen_at"]
-    I --> J["badge on the bell"]
+flowchart TD
+    subgraph IN["In the app - the bell and the list"]
+        A["issues[]"] --> B["for each issue"]
+        B --> C["new issue reported"]
+        B --> D["marked as done"]
+        B --> E["high priority, still open"]
+        B --> F["message from an admin"]
+        C --> G["filter by the user's<br/>notification preferences"]
+        D --> G
+        E --> G
+        F --> G
+        G --> H["newest first"]
+        H --> I["unread = newer than<br/>notifications_seen_at"]
+        I --> J["badge on the bell"]
+    end
+
+    subgraph OUT["On the device - a real notification"]
+        K["A change made by someone else"] --> L{"how does it arrive?"}
+        L -- "connected" --> M["Supabase Realtime"]
+        L -- "otherwise" --> N["poll every 15 seconds"]
+        M --> O["refresh()"]
+        N --> O
+        O --> P["compare with what was on screen"]
+        P --> Q{"did we cause it?"}
+        Q -- "yes" --> R["stay quiet"]
+        Q -- "no" --> S{"allowed, and switched on?"}
+        S -- "no" --> T["in-app toast instead"]
+        S -- "yes" --> U["service worker<br/>showNotification()"]
+        U --> V["tapping it brings the app forward"]
+    end
 ```
+
+> The bell is in-app and always works. The device notification needs
+> permission, asked for from Settings when the button is pressed.
+>
+> A notification reaches a **closed** app only from a server holding a push
+> subscription. Nothing sends one yet - the service worker's `push` handler is
+> in place for when that exists.
 
 ---
 

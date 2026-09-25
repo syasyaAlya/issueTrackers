@@ -1404,6 +1404,28 @@
         </div>
       </section>
 
+      <!-- Device notifications. The permission prompt is only shown when the
+           button is pressed - asking on page load is both rude and blocked by
+           most browsers. -->
+      <section class="card" id="desktopNotifCard">
+        <h3>Notifications on this device</h3>
+        <p class="card-sub">Get a real notification, outside the app, when an issue
+          is reported or updated - so you see it while another tab is in front.</p>
+
+        <div class="pref" style="align-items:center;">
+          <div class="txt">
+            <div class="t">Show device notifications</div>
+            <div class="d" id="notifPermNote">Checking&hellip;</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="prefDesktop" /><span class="track"></span><span class="knob"></span></label>
+        </div>
+
+        <div class="card-row" style="margin-top:14px;">
+          <button class="btn" id="notifEnableBtn" hidden>Enable notifications</button>
+          <button class="btn" id="notifTestBtn" hidden>Send a test</button>
+        </div>
+      </section>
+
       <section class="card" id="appearanceCard">
         <h3>Appearance</h3>
         <p class="card-sub"><b>Night mode</b> is your choice. <b>Auto</b> follows your device's light or dark setting.</p>
@@ -2292,6 +2314,21 @@ end $$;
 -- ============================================================================
 alter table public.issues replica identity full;
 
+
+-- ============================================================================
+--  Realtime: let the browser subscribe to changes on issues, so the board and
+--  the notification bell update on their own instead of waiting for a reload.
+--  Guarded twice over: a plain PostgreSQL has no supabase_realtime publication,
+--  and adding the same table to it twice is an error.
+-- ============================================================================
+do $$
+begin
+  begin
+    alter publication supabase_realtime add table public.issues;
+  exception when others then null;
+  end;
+end $$;
+
 </script>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -3164,6 +3201,7 @@ alter table public.issues replica identity full;
   }
 
   function showAuth(pane) {
+    stopLiveUpdates();          // signed out: stop the poll and the realtime channel
     hideAll();
     el("authView").hidden = false;
     showPane(pane || "login");
@@ -3219,6 +3257,7 @@ alter table public.issues replica identity full;
     userQuery = "";
     sortBy = "status";
     selected = {};
+    boardLoaded = false;        // the first load is not a change
     el("search").value = "";
     el("userSearch").value = "";
     el("priorityFilter").value = "all";
@@ -3227,6 +3266,7 @@ alter table public.issues replica identity full;
     render();
     refresh();
     if (isAdmin()) refreshUsers();
+    startLiveUpdates();         // keep the board fresh, and raise notifications
   }
 
   /* ==================================================================
@@ -3505,7 +3545,12 @@ alter table public.issues replica identity full;
 
   function refresh() {
     return api.listIssues().then(function (rows) {
-      issues = rows || [];
+      var next = rows || [];
+      // Compare before replacing, so a change someone else made can be
+      // announced. On the very first load there is nothing to compare against.
+      var events = boardLoaded ? diffIssues(issues, next) : [];
+      boardLoaded = true;
+      issues = next;
       render();
       // Keep the admin users table's report counts accurate.
       if (isAdmin() && view === "users") renderUsers();
@@ -3514,6 +3559,7 @@ alter table public.issues replica identity full;
       if (view === "notifications") renderNotifications();
       if (isAdmin() && view === "report") renderReport();
       updateBell();
+      announce(events);
     }).catch(function (e) {
       toast("Could not load issues: " + friendly(e.message));
     });
@@ -3526,6 +3572,9 @@ alter table public.issues replica identity full;
 
   /* Write, then reload so the screen always matches the database. */
   function mutate(promise, okMsg) {
+    // Our own change is not news to us: stay quiet over the round trip, and
+    // over any realtime event that arrives while it is still in flight.
+    quietUntil = Date.now() + 4000;
     return promise.then(function () {
       return refresh();
     }).then(function () {
@@ -4938,6 +4987,7 @@ alter table public.issues replica identity full;
     el("prefDone").checked = p.statusDone !== false;
     el("prefHigh").checked = p.highPriority !== false;
     el("prefsNote").textContent = "";
+    renderNotifPermission();
     syncThemeUI();
   }
 
@@ -4967,6 +5017,257 @@ alter table public.issues replica identity full;
   ["prefNew", "prefDone", "prefHigh"].forEach(function (id) {
     el(id).addEventListener("change", savePrefs);
   });
+
+  /* ==================================================================
+     DEVICE NOTIFICATIONS
+     ------------------------------------------------------------------
+     The bell and the list below it are in-app. This is what puts a real
+     notification on the device's screen, so it is seen when the app is in
+     another tab or running installed.
+
+     The permission prompt is only raised when the button is pressed:
+     asking on page load is both rude and blocked by the browsers.
+     ================================================================== */
+  var NOTIF_DEVICE_KEY = "it.deviceNotifications";
+
+  function notifSupported() {
+    return typeof Notification !== "undefined" && "Notification" in window;
+  }
+
+  function deviceNotifsWanted() {
+    try { return localStorage.getItem(NOTIF_DEVICE_KEY) !== "false"; }
+    catch (e) { return true; }
+  }
+
+  function setDeviceNotifsWanted(on) {
+    try { localStorage.setItem(NOTIF_DEVICE_KEY, on ? "true" : "false"); } catch (e) {}
+  }
+
+  /* Go through the service worker when there is one. That is the only route
+     that works on Android, and it keeps the notification alive after the page
+     is backgrounded. The plain constructor is the fallback. */
+  function showDeviceNotification(title, body, tag) {
+    if (!notifSupported() || Notification.permission !== "granted") return;
+    if (!deviceNotifsWanted()) return;
+
+    var options = {
+      body: body,
+      tag: tag,
+      icon: "./icon-192.png",
+      badge: "./icon-192.png",
+      data: { url: redirectTo() }
+    };
+
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready
+          .then(function (reg) { return reg.showNotification(title, options); })
+          .catch(function () { plainNotification(title, options); });
+        return;
+      }
+    } catch (e) { /* fall through to the constructor */ }
+
+    plainNotification(title, options);
+  }
+
+  function plainNotification(title, options) {
+    try { new Notification(title, options); } catch (e) {}
+  }
+
+  function renderNotifPermission() {
+    var note = el("notifPermNote");
+    if (!note) return;
+    var btn  = el("notifEnableBtn");
+    var test = el("notifTestBtn");
+    var box  = el("prefDesktop");
+
+    if (!notifSupported()) {
+      note.textContent = "This browser cannot show notifications. On an iPhone, install the app first (Share, then Add to Home Screen).";
+      btn.hidden = true;
+      test.hidden = true;
+      box.checked = false;
+      box.disabled = true;
+      return;
+    }
+
+    box.disabled = false;
+    box.checked = deviceNotifsWanted();
+
+    var state = Notification.permission;
+    if (state === "granted") {
+      note.textContent = "Allowed on this device.";
+      btn.hidden = true;
+      test.hidden = !deviceNotifsWanted();
+    } else if (state === "denied") {
+      note.textContent = "Blocked. Allow notifications for this site in the browser's settings, then reload.";
+      btn.hidden = true;
+      test.hidden = true;
+    } else {
+      note.textContent = "Not allowed yet. Press Enable notifications to be asked.";
+      btn.hidden = false;
+      test.hidden = true;
+    }
+  }
+
+  function askNotifPermission() {
+    if (!notifSupported()) { renderNotifPermission(); return; }
+
+    var btn = el("notifEnableBtn");
+    busy(btn, true, "Asking…");
+
+    var done = false;
+    function finish(state) {
+      if (done) return;
+      done = true;
+      busy(btn, false);
+      renderNotifPermission();
+      if (state === "granted") {
+        setDeviceNotifsWanted(true);
+        el("prefDesktop").checked = true;
+        toast("Notifications enabled on this device");
+        showDeviceNotification("Issue Tracker", "Notifications are on. You will be told when an issue changes.", "welcome");
+      } else if (state === "denied") {
+        toast("Notifications were blocked for this site");
+      } else {
+        toast("Notifications were not allowed");
+      }
+    }
+
+    try {
+      // Newer browsers return a promise; older ones take a callback. Passing
+      // both is harmless - whichever the browser supports will answer.
+      var maybe = Notification.requestPermission(finish);
+      if (maybe && typeof maybe.then === "function") maybe.then(finish);
+    } catch (e) {
+      finish(Notification.permission);
+    }
+  }
+
+  if (el("notifEnableBtn")) el("notifEnableBtn").addEventListener("click", askNotifPermission);
+
+  if (el("notifTestBtn")) el("notifTestBtn").addEventListener("click", function () {
+    if (Notification.permission !== "granted") { askNotifPermission(); return; }
+    showDeviceNotification("Issue Tracker", "This is a test notification.", "test");
+  });
+
+  if (el("prefDesktop")) el("prefDesktop").addEventListener("change", function () {
+    var on = el("prefDesktop").checked;
+    setDeviceNotifsWanted(on);
+    if (on && notifSupported() && Notification.permission === "default") { askNotifPermission(); return; }
+    renderNotifPermission();
+    toast(on ? "Device notifications on" : "Device notifications off");
+  });
+
+  /* ==================================================================
+     LIVE UPDATES
+     ------------------------------------------------------------------
+     Two ways a change made by someone else reaches this screen:
+
+       * Supabase Realtime, when connected - it arrives immediately
+       * a poll every 15 seconds - the fallback, and what demo mode uses
+
+     Both funnel into refresh(), which is also where the change is compared
+     against what was on screen, so a notification can be raised.
+     ================================================================== */
+  var quietUntil  = 0;        // changes we caused ourselves are not news
+  var boardLoaded = false;    // the first load is not a change
+  var liveChannel = null;
+  var liveTimer   = null;
+  var liveTopic   = "issues-live";
+
+  function startLiveUpdates() {
+    stopLiveUpdates();
+
+    if (api.mode === "cloud" && sb) {
+      try {
+        liveChannel = sb.channel(liveTopic)
+          .on("postgres_changes",
+              { event: "*", schema: "public", table: "issues" },
+              function () { refresh(); })
+          .subscribe();
+      } catch (e) { liveChannel = null; }
+    }
+
+    liveTimer = setInterval(function () { refresh(); }, 15000);
+  }
+
+  function stopLiveUpdates() {
+    if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+    if (liveChannel && sb) {
+      try { sb.removeChannel(liveChannel); } catch (e) {}
+    }
+    liveChannel = null;
+  }
+
+  /* What changed between what was on screen and what has just arrived. */
+  function diffIssues(prev, next) {
+    var out = [];
+    var before = {};
+    prev.forEach(function (it) { before[it.id] = it; });
+
+    next.forEach(function (it) {
+      var was = before[it.id];
+      if (!was) { out.push({ kind: "created", issue: it }); return; }
+      if (was.status !== it.status) {
+        out.push({ kind: "status", issue: it, from: was.status });
+      }
+      if (!was.adminNote && it.adminNote) {
+        out.push({ kind: "note", issue: it });
+      }
+    });
+
+    return out;
+  }
+
+  /* Tell the person about a change, so long as they asked to be told. */
+  function announce(events) {
+    if (!events || !events.length || !currentUser) return;
+    if (Date.now() < quietUntil) return;              // we caused it
+
+    var prefs = currentUser.notify || {};
+
+    events.forEach(function (ev) {
+      var it = ev.issue;
+      if (!it) return;
+
+      // Your own reporting is not news to you. A status change on your issue
+      // is, even though it is your issue.
+      if (isMine(it) && ev.kind === "created") return;
+
+      var title = "";
+      var body  = "";
+
+      if (ev.kind === "created") {
+        if (prefs.newIssue === false) return;
+        title = "New issue reported";
+        body  = it.title;
+      } else if (ev.kind === "note") {
+        title = "Message from an administrator";
+        body  = it.title + " - " + it.adminNote;
+      } else if (ev.kind === "status") {
+        if (it.status === "done") {
+          if (prefs.statusDone === false) return;
+          title = "Marked as done";
+          body  = it.title;
+        } else if (it.status === "pending") {
+          title = "Now in progress";
+          body  = it.title;
+        } else {
+          return;                                    // back to None: not worth a buzz
+        }
+      } else {
+        return;
+      }
+
+      var canUseDevice = notifSupported() && Notification.permission === "granted" && deviceNotifsWanted();
+      if (canUseDevice) {
+        showDeviceNotification(title, body, "issue-" + it.id);
+      } else if (document.visibilityState === "visible") {
+        // No permission (or switched off): still say so, in the app.
+        toast(title + ": " + body);
+      }
+    });
+  }
 
   /* ==================================================================
      PROFILE

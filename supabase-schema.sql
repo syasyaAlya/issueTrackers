@@ -754,3 +754,18 @@ end $$;
 --  update, which is nothing at this size.
 -- ============================================================================
 alter table public.issues replica identity full;
+
+
+-- ============================================================================
+--  Realtime: let the browser subscribe to changes on issues, so the board and
+--  the notification bell update on their own instead of waiting for a reload.
+--  Guarded twice over: a plain PostgreSQL has no supabase_realtime publication,
+--  and adding the same table to it twice is an error.
+-- ============================================================================
+do $$
+begin
+  begin
+    alter publication supabase_realtime add table public.issues;
+  exception when others then null;
+  end;
+end $$;
