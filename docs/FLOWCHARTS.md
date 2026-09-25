@@ -61,7 +61,6 @@ erDiagram
         uuid created_by FK
         text created_by_email
         text admin_note
-        timestamptz deleted_at "soft delete"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -94,15 +93,13 @@ flowchart TD
     A --> A3["Change status: none / pending / done"]
     A --> A4["Change priority"]
     A --> A5["Leave a message for the reporter"]
-    A --> A6["Delete to the recycle bin"]
-    A --> A7["Restore, purge, empty the bin"]
+    A --> A6["Delete an issue, for good"]
     A --> A8["Manage users"]
     A --> A9["Backups and reports"]
 
     U --> U1["See the whole board"]
     U --> U2["Report an issue, starts as None"]
     U --> U3["Search and filter"]
-    U --> U4["Delete their own issue to the bin"]
     U --> U5["See statistics"]
 ```
 
@@ -239,25 +236,15 @@ flowchart TD
 
 ---
 
-**12. Delete, recycle bin, restore, purge.**
+**12. Delete — final, with no recycle bin.**
 
 ```mermaid
 flowchart TD
-    A["Delete an issue"] --> B["soft_delete_issue()"]
-    B --> C{"reported by you,<br/>or are you an admin?"}
-    C -- "no" --> D["rejected"]
-    C -- "yes" --> E["deleted_at = now()"]
-
-    E --> F["The row fails the select policy,<br/>so it vanishes from EVERY list<br/>with no query changed"]
-
-    F --> G["Admin opens the Recycle bin"]
-    G --> H["list_deleted_issues()<br/>admins only"]
-    H --> I{"what next?"}
-    I -- "Restore" --> J["restore_issue()<br/>deleted_at = null"]
-    I -- "Delete for good" --> K["purge_issue()<br/>row removed for ever"]
-    I -- "Empty the bin" --> L["empty_recycle_bin()<br/>all binned rows removed"]
-
-    J --> M["back on the board"]
+    A["Delete an issue"] --> B{"are you an admin?"}
+    B -- "no" --> C["No delete policy matches,<br/>so the row is left alone"]
+    B -- "yes" --> D["A confirmation first:<br/>'this cannot be undone'"]
+    D --> E["delete from issues"]
+    E --> F["The row is gone for good.<br/>There is no recycle bin."]
 ```
 
 ---
@@ -383,8 +370,8 @@ flowchart TD
     DB --> P2["Who can REPORT, and in whose name<br/>issues_insert_auth"]
     DB --> P3["Who can EDIT<br/>issues_update_admin"]
     DB --> P4["What an edit may change<br/>guard_issue_update"]
-    DB --> P5["Who can delete for good<br/>issues_delete_admin"]
-    DB --> P6["Who can see or empty the bin<br/>is_admin() re-checked"]
+    DB --> P5["Who can DELETE an issue<br/>issues_delete_admin"]
+    DB --> P6["That a delete is final<br/>there is no recycle bin"]
     DB --> P7["Which role a new account gets<br/>handle_new_user"]
     DB --> P8["Whether a role may change<br/>guard_profile_role"]
     DB --> P9["Whether a backup is due<br/>auto_snapshot"]
