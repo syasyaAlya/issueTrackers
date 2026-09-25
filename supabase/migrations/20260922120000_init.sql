@@ -768,3 +768,16 @@ begin
   exception when others then null;
   end;
 end $$;
+
+
+-- ============================================================================
+--  TELL PostgREST TO RE-READ THE SCHEMA.
+--  PostgREST caches the shape of the database. A function created moments ago
+--  can stay invisible to the API until that cache refreshes, and then every
+--  call to it fails with:
+--      Could not find the function public.<name>() in the schema cache
+--  Supabase usually reloads on its own, but not always and not instantly.
+--  This one line makes it immediate. Harmless elsewhere: it is only a
+--  notification, and nothing is listening on a plain PostgreSQL.
+-- ============================================================================
+notify pgrst, 'reload schema';
