@@ -1356,6 +1356,19 @@
           </div>
         </div>
       </section>
+
+      <!-- Alerts, right where the notifications are. Both roles see this, so a
+           normal user can turn them on without hunting through settings. -->
+      <section class="card" id="notifAlertsCard">
+        <h3>Alerts on this device</h3>
+        <p class="card-sub" id="notifQuickNote">Checking&hellip;</p>
+        <div class="card-row">
+          <label class="switch"><input type="checkbox" id="notifQuickToggle" /><span class="track"></span><span class="knob"></span></label>
+          <button class="btn primary" id="notifQuickEnableBtn" hidden>Turn on alerts</button>
+          <button class="btn" id="notifQuickTestBtn" hidden>Send a test</button>
+        </div>
+      </section>
+
       <div class="card" style="padding:0;overflow:hidden;" id="notifList"></div>
     </div>
 
@@ -4639,6 +4652,7 @@ notify pgrst, 'reload schema';
   };
 
   function renderNotifications() {
+    renderNotifPermission();
     var list = buildNotifications();
     var seen = currentUser.seenAt || 0;
     var wrap = el("notifList");
@@ -4787,37 +4801,60 @@ notify pgrst, 'reload schema';
   }
 
   function renderNotifPermission() {
-    var note = el("notifPermNote");
-    if (!note) return;
-    var btn  = el("notifEnableBtn");
-    var test = el("notifTestBtn");
-    var box  = el("prefDesktop");
+    var note      = el("notifPermNote");        // on the Settings page
+    var quickNote = el("notifQuickNote");       // on the Notifications page
+    var box       = el("prefDesktop");
+    var quick     = el("notifQuickToggle");
+    var wanted    = deviceNotifsWanted();
+
+    function show(id, visible) { var b = el(id); if (b) b.hidden = !visible; }
+    function setBoxes(checked, enabled) {
+      [box, quick].forEach(function (b) { if (b) { b.checked = checked; b.disabled = !enabled; } });
+    }
+    function say(text) {
+      if (note) note.textContent = text;
+      if (quickNote) quickNote.textContent = text;
+    }
+
+    var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
     if (!notifSupported()) {
-      note.textContent = "This browser cannot show notifications. On an iPhone, install the app first (Share, then Add to Home Screen).";
-      btn.hidden = true;
-      test.hidden = true;
-      box.checked = false;
-      box.disabled = true;
+      say("This browser cannot show notifications." +
+          (iOS ? " On an iPhone, install the app first: Share, then Add to Home Screen." : ""));
+      setBoxes(false, false);
+      show("notifEnableBtn", false);
+      show("notifTestBtn", false);
+      show("notifQuickEnableBtn", false);
+      show("notifQuickTestBtn", false);
       return;
     }
 
-    box.disabled = false;
-    box.checked = deviceNotifsWanted();
-
     var state = Notification.permission;
+
     if (state === "granted") {
-      note.textContent = "Allowed on this device.";
-      btn.hidden = true;
-      test.hidden = !deviceNotifsWanted();
+      setBoxes(wanted, true);
+      if (quick) quick.checked = wanted;
+      say(wanted
+        ? "Alerts are on. You will be told when an issue is reported, changes status or priority, or gets a message."
+        : "Alerts are switched off on this device.");
+      show("notifEnableBtn", false);
+      show("notifTestBtn", wanted);
+      show("notifQuickEnableBtn", false);
+      show("notifQuickTestBtn", wanted);
     } else if (state === "denied") {
-      note.textContent = "Blocked. Allow notifications for this site in the browser's settings, then reload.";
-      btn.hidden = true;
-      test.hidden = true;
+      setBoxes(false, false);
+      say("Notifications are blocked for this site. Allow them in the browser's settings, then reload.");
+      show("notifEnableBtn", false);
+      show("notifTestBtn", false);
+      show("notifQuickEnableBtn", false);
+      show("notifQuickTestBtn", false);
     } else {
-      note.textContent = "Not allowed yet. Press Enable notifications to be asked.";
-      btn.hidden = false;
-      test.hidden = true;
+      setBoxes(false, false);
+      say("Alerts are off. Turn them on to be told when an issue changes.");
+      show("notifEnableBtn", true);
+      show("notifTestBtn", false);
+      show("notifQuickEnableBtn", true);
+      show("notifQuickTestBtn", false);
     }
   }
 
@@ -4855,19 +4892,29 @@ notify pgrst, 'reload schema';
     }
   }
 
-  if (el("notifEnableBtn")) el("notifEnableBtn").addEventListener("click", askNotifPermission);
-
-  if (el("notifTestBtn")) el("notifTestBtn").addEventListener("click", function () {
-    if (Notification.permission !== "granted") { askNotifPermission(); return; }
+  function sendTestNotification() {
+    if (!notifSupported() || Notification.permission !== "granted") { askNotifPermission(); return; }
     showDeviceNotification("Issue Tracker", "This is a test notification.", "test");
-  });
+  }
 
-  if (el("prefDesktop")) el("prefDesktop").addEventListener("change", function () {
-    var on = el("prefDesktop").checked;
+  /* One place that flips the switch, whichever of the two was used. */
+  function setAlerts(on) {
     setDeviceNotifsWanted(on);
     if (on && notifSupported() && Notification.permission === "default") { askNotifPermission(); return; }
     renderNotifPermission();
-    toast(on ? "Device notifications on" : "Device notifications off");
+    toast(on ? "Alerts on for this device" : "Alerts off for this device");
+  }
+
+  ["notifEnableBtn", "notifQuickEnableBtn"].forEach(function (id) {
+    if (el(id)) el(id).addEventListener("click", askNotifPermission);
+  });
+
+  ["notifTestBtn", "notifQuickTestBtn"].forEach(function (id) {
+    if (el(id)) el(id).addEventListener("click", sendTestNotification);
+  });
+
+  ["prefDesktop", "notifQuickToggle"].forEach(function (id) {
+    if (el(id)) el(id).addEventListener("change", function () { setAlerts(el(id).checked); });
   });
 
   /* ==================================================================
@@ -4923,9 +4970,19 @@ notify pgrst, 'reload schema';
       if (was.status !== it.status) {
         out.push({ kind: "status", issue: it, from: was.status });
       }
+      if (was.priority !== it.priority) {
+        out.push({ kind: "priority", issue: it, from: was.priority });
+      }
       if (!was.adminNote && it.adminNote) {
         out.push({ kind: "note", issue: it });
       }
+    });
+
+    // Something that was on the board and is not any more was deleted.
+    var still = {};
+    next.forEach(function (it) { still[it.id] = true; });
+    prev.forEach(function (it) {
+      if (!still[it.id]) out.push({ kind: "deleted", issue: it });
     });
 
     return out;
@@ -4967,6 +5024,12 @@ notify pgrst, 'reload schema';
         } else {
           return;                                    // back to None: not worth a buzz
         }
+      } else if (ev.kind === "priority") {
+        title = "Priority changed";
+        body  = it.title + " - now " + it.priority;
+      } else if (ev.kind === "deleted") {
+        title = "Issue deleted";
+        body  = it.title;
       } else {
         return;
       }

@@ -351,8 +351,10 @@ flowchart TD
     end
 ```
 
-> The bell is in-app and always works. The device notification needs
-> permission, asked for from Settings when the button is pressed.
+> The bell is in-app and always works. The device alert needs permission,
+> asked for from the Notifications screen (or Settings), and covers new
+> issues, status changes, priority changes, deletions and admin messages.
+> Both administrators and normal users have the same switch.
 >
 > A notification reaches a **closed** app only from a server holding a push
 > subscription. Nothing sends one yet - the service worker's `push` handler is
