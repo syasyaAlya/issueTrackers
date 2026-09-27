@@ -22,7 +22,7 @@ cannot do, and the database (Row Level Security + triggers) rejects it anyway.
 | `PUBLISHING.md` | How to put it online for free — GitHub Pages or Vercel. |
 | `vercel.json` | Ready-made Vercel config (static site, no build step). |
 | `steps/` | Older tutorial versions of the tracker, kept for reference. |
-| `docs/` | `FLOWCHARTS.md` - the architecture and every process, as flowcharts. |
+| `docs/` | `FLOWCHARTS.md` (how it works) and `PERFORMANCE.md` (what is slow and how to fix it). |
 
 `index.html` is also its own setup guide: the **Connect Supabase** button
 (banner or setup panel) shows the same SQL with a copy button.
@@ -34,6 +34,7 @@ cannot do, and the database (Row Level Security + triggers) rejects it anyway.
 | Document | What it covers |
 | --- | --- |
 | [`docs/FLOWCHARTS.md`](docs/FLOWCHARTS.md) | The whole system as flowcharts: the architecture, roles and permissions, and every process from sign-up to backups. |
+| [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) | Every issue in this system that makes it slower than it could be, what each one costs, how to fix it, and which tool does the fixing. |
 | [`PUBLISHING.md`](PUBLISHING.md) | How to put it online for free. |
 | [`PRESENTATION.md`](PRESENTATION.md) | A slide-style overview. |
 
