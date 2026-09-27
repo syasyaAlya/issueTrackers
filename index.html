@@ -1353,7 +1353,6 @@
           </div>
           <div class="card-row">
             <button class="btn" id="notifMarkRead">Mark all as read</button>
-            <button class="btn" id="notifPrefsBtn">Notification settings</button>
           </div>
         </div>
       </section>
@@ -1365,8 +1364,6 @@
         <p class="card-sub" id="notifQuickNote">Checking&hellip;</p>
         <div class="card-row">
           <label class="switch"><input type="checkbox" id="notifQuickToggle" /><span class="track"></span><span class="knob"></span></label>
-          <button class="btn primary" id="notifQuickEnableBtn" hidden>Turn on alerts</button>
-          <button class="btn" id="notifQuickTestBtn" hidden>Send a test</button>
         </div>
       </section>
 
@@ -1403,15 +1400,11 @@
           <label class="switch"><input type="checkbox" id="prefHigh" /><span class="track"></span><span class="knob"></span></label>
         </div>
 
-        <div class="card-row" style="margin-top:18px;">
-          <button class="btn" id="prefsToNotifs">View notifications</button>
-          <span class="card-note" id="prefsNote"></span>
-        </div>
+        <p class="card-note" id="prefsNote" role="status" style="margin-top:14px;"></p>
       </section>
 
-      <!-- Device notifications. The permission prompt is only shown when the
-           button is pressed - asking on page load is both rude and blocked by
-           most browsers. -->
+      <!-- Device notifications. One switch, nothing else: turning it on asks
+           the browser for permission, so there is no extra button to press. -->
       <section class="card" id="desktopNotifCard">
         <h3>Notifications on this device</h3>
         <p class="card-sub">Get a real notification, outside the app, when an issue
@@ -1423,11 +1416,6 @@
             <div class="d" id="notifPermNote">Checking&hellip;</div>
           </div>
           <label class="switch"><input type="checkbox" id="prefDesktop" /><span class="track"></span><span class="knob"></span></label>
-        </div>
-
-        <div class="card-row" style="margin-top:14px;">
-          <button class="btn" id="notifEnableBtn" hidden>Enable notifications</button>
-          <button class="btn" id="notifTestBtn" hidden>Send a test</button>
         </div>
       </section>
 
@@ -4660,8 +4648,7 @@ notify pgrst, 'reload schema';
 
     if (!list.length) {
       wrap.innerHTML = '<div class="empty" style="border:0;background:transparent;">' +
-        '<p>No notifications yet. Activity matching your preferences appears here.</p>' +
-        '<button class="btn" data-goto="prefs">Notification settings</button></div>';
+        '<p>No notifications yet. Activity matching your preferences appears here.</p></div>';
       return;
     }
 
@@ -4701,9 +4688,6 @@ notify pgrst, 'reload schema';
       toast(friendly(ex.message));
     });
   });
-
-  el("notifPrefsBtn").addEventListener("click", function () { setView("prefs"); });
-  el("prefsToNotifs").addEventListener("click", function () { setView("notifications"); });
 
   /* ==================================================================
      NOTIFICATION PREFERENCES
@@ -4801,17 +4785,14 @@ notify pgrst, 'reload schema';
     try { new Notification(title, options); } catch (e) {}
   }
 
+  /* The switch is the only control. Turning it on asks the browser for
+     permission, so there is no separate button to wonder about. */
   function renderNotifPermission() {
     var note      = el("notifPermNote");        // on the Settings page
     var quickNote = el("notifQuickNote");       // on the Notifications page
     var box       = el("prefDesktop");
     var quick     = el("notifQuickToggle");
-    var wanted    = deviceNotifsWanted();
 
-    function show(id, visible) { var b = el(id); if (b) b.hidden = !visible; }
-    function setBoxes(checked, enabled) {
-      [box, quick].forEach(function (b) { if (b) { b.checked = checked; b.disabled = !enabled; } });
-    }
     function say(text) {
       if (note) note.textContent = text;
       if (quickNote) quickNote.textContent = text;
@@ -4822,65 +4803,48 @@ notify pgrst, 'reload schema';
     if (!notifSupported()) {
       say("This browser cannot show notifications." +
           (iOS ? " On an iPhone, install the app first: Share, then Add to Home Screen." : ""));
-      setBoxes(false, false);
-      show("notifEnableBtn", false);
-      show("notifTestBtn", false);
-      show("notifQuickEnableBtn", false);
-      show("notifQuickTestBtn", false);
+      [box, quick].forEach(function (b) { if (b) { b.checked = false; b.disabled = true; } });
       return;
     }
 
-    var state = Notification.permission;
+    var state   = Notification.permission;
+    var granted = state === "granted";
+    var on      = granted && deviceNotifsWanted();
 
-    if (state === "granted") {
-      setBoxes(wanted, true);
-      if (quick) quick.checked = wanted;
-      say(wanted
-        ? "Alerts are on. You will be told when an issue is reported, changes status or priority, or gets a message."
-        : "Alerts are switched off on this device.");
-      show("notifEnableBtn", false);
-      show("notifTestBtn", wanted);
-      show("notifQuickEnableBtn", false);
-      show("notifQuickTestBtn", wanted);
+    // The switch shows whether alerts are actually on, so it stays off until
+    // the browser has allowed them.
+    [box, quick].forEach(function (b) {
+      if (!b) return;
+      b.disabled = state === "denied";
+      b.checked = on;
+    });
+
+    if (granted) {
+      say(on ? "On. You will be told when an issue is reported or updated."
+             : "Off for this device.");
     } else if (state === "denied") {
-      setBoxes(false, false);
-      say("Notifications are blocked for this site. Allow them in the browser's settings, then reload.");
-      show("notifEnableBtn", false);
-      show("notifTestBtn", false);
-      show("notifQuickEnableBtn", false);
-      show("notifQuickTestBtn", false);
+      say("Blocked for this site. Allow notifications in the browser's settings, then reload.");
     } else {
-      setBoxes(false, false);
-      say("Alerts are off. Turn them on to be told when an issue changes.");
-      show("notifEnableBtn", true);
-      show("notifTestBtn", false);
-      show("notifQuickEnableBtn", true);
-      show("notifQuickTestBtn", false);
+      say("Off. Turn it on and the browser will ask you to allow notifications.");
     }
   }
 
   function askNotifPermission() {
     if (!notifSupported()) { renderNotifPermission(); return; }
 
-    var btn = el("notifEnableBtn");
-    busy(btn, true, "Asking…");
-
     var done = false;
     function finish(state) {
       if (done) return;
       done = true;
-      busy(btn, false);
-      renderNotifPermission();
       if (state === "granted") {
         setDeviceNotifsWanted(true);
-        el("prefDesktop").checked = true;
-        toast("Notifications enabled on this device");
-        showDeviceNotification("Issue Tracker", "Notifications are on. You will be told when an issue changes.", "welcome");
+        toast("Alerts on for this device");
       } else if (state === "denied") {
-        toast("Notifications were blocked for this site");
+        toast("Notifications are blocked for this site");
       } else {
         toast("Notifications were not allowed");
       }
+      renderNotifPermission();
     }
 
     try {
@@ -4893,26 +4857,22 @@ notify pgrst, 'reload schema';
     }
   }
 
-  function sendTestNotification() {
-    if (!notifSupported() || Notification.permission !== "granted") { askNotifPermission(); return; }
-    showDeviceNotification("Issue Tracker", "This is a test notification.", "test");
-  }
-
   /* One place that flips the switch, whichever of the two was used. */
   function setAlerts(on) {
-    setDeviceNotifsWanted(on);
-    if (on && notifSupported() && Notification.permission === "default") { askNotifPermission(); return; }
+    if (!on) {
+      setDeviceNotifsWanted(false);
+      renderNotifPermission();
+      toast("Alerts off for this device");
+      return;
+    }
+    // Turning it on may need the browser's permission first.
+    if (notifSupported() && Notification.permission === "default") { askNotifPermission(); return; }
+    setDeviceNotifsWanted(true);
     renderNotifPermission();
-    toast(on ? "Alerts on for this device" : "Alerts off for this device");
+    toast(Notification.permission === "granted"
+      ? "Alerts on for this device"
+      : "Notifications are blocked for this site");
   }
-
-  ["notifEnableBtn", "notifQuickEnableBtn"].forEach(function (id) {
-    if (el(id)) el(id).addEventListener("click", askNotifPermission);
-  });
-
-  ["notifTestBtn", "notifQuickTestBtn"].forEach(function (id) {
-    if (el(id)) el(id).addEventListener("click", sendTestNotification);
-  });
 
   ["prefDesktop", "notifQuickToggle"].forEach(function (id) {
     if (el(id)) el(id).addEventListener("change", function () { setAlerts(el(id).checked); });
