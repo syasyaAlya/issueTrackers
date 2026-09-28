@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>API status - Issue Tracker</title>
+<meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0e1016" media="(prefers-color-scheme: dark)" />
+<link rel="icon" href="./icon-192.png" />
+<style>
+  :root {
+    --bg:#f4f5f8; --surface:#fff; --surface-2:#f0f1f4; --border:#e3e5ea;
+    --text:#171a20; --muted:#6b7280; --accent:#4f46e5; --accent-soft:#eef0ff;
+    --done:#15803d; --done-soft:#e7f6ed; --danger:#dc2626; --high-soft:#fdeaea;
+    --pending:#b45309; --pending-soft:#fdf3e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0e1016; --surface:#171a22; --surface-2:#1e222c; --border:#2a2f3b;
+            --text:#e8eaf0; --muted:#9aa2b1; --accent:#8b8cf7; --accent-soft:#232544;
+            --done:#4ade80; --done-soft:#14301f; --danger:#f87171; --high-soft:#35191b;
+            --pending:#fbbf24; --pending-soft:#33260f; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:26px 18px 70px; }
+  .brand { display:flex; align-items:center; gap:12px; margin-bottom:22px; }
+  .logo { width:38px; height:38px; border-radius:12px; flex:none; display:grid; place-items:center;
+          background:linear-gradient(135deg,#6366f1 0%,#7c5cf6 55%,#a855f7 100%);
+          box-shadow:0 2px 10px rgba(99,102,241,.35); }
+  .logo svg { width:38px; height:38px; }
+  .brand h1 { font-size:17px; margin:0; }
+  .brand p { margin:0; font-size:12.5px; color:var(--muted); }
+  .verdict { border-radius:14px; padding:20px; margin-bottom:20px; border:1px solid var(--border); background:var(--surface); }
+  .verdict .big { font-size:20px; font-weight:700; margin:0 0 6px; display:flex; align-items:center; gap:10px; }
+  .verdict .sub { margin:0; color:var(--muted); font-size:13.5px; }
+  .verdict.good { background:var(--done-soft); border-color:color-mix(in srgb, var(--done) 45%, transparent); }
+  .verdict.good .big { color:var(--done); }
+  .verdict.bad { background:var(--high-soft); border-color:color-mix(in srgb, var(--danger) 45%, transparent); }
+  .verdict.bad .big { color:var(--danger); }
+  .verdict.wait { background:var(--pending-soft); border-color:color-mix(in srgb, var(--pending) 45%, transparent); }
+  .verdict.wait .big { color:var(--pending); }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px;
+          padding:18px 20px; margin:16px 0; box-shadow:0 1px 2px rgba(16,20,30,.05); }
+  h2 { font-size:13px; margin:0 0 12px; text-transform:uppercase;
+       letter-spacing:.07em; color:var(--muted); }
+  .row { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .row:last-child { border-bottom:0; }
+  .mark { width:20px; text-align:center; flex:none; font-weight:700; }
+  .ok .mark { color:var(--done); }
+  .no .mark { color:var(--danger); }
+  .what { flex:1 1 220px; min-width:0; font-size:13.5px; }
+  .why { color:var(--muted); font-size:12.5px; }
+  code { font:12.5px ui-monospace, Menlo, Consolas, monospace; background:var(--surface-2);
+         padding:1px 5px; border-radius:5px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center;
+         border:1px solid var(--border); background:var(--surface); color:var(--text);
+         padding:10px 16px; border-radius:9px; font-size:14px; font-weight:550; cursor:pointer;
+         min-height:44px; text-decoration:none; }
+  .btn:hover { background:var(--surface-2); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  ol { margin:10px 0 0; padding-left:20px; font-size:13.5px; color:var(--text); }
+  ol li { margin-bottom:7px; }
+  .who { font-size:12.5px; color:var(--muted); margin-top:14px; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 48 48"><path d="M12.96 25.44 20.88 32.88 35.76 15.84" fill="none"
+        stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+    </span>
+    <div>
+      <h1>API status</h1>
+      <p>Checks whether the REST API is installed. No key needed.</p>
+    </div>
+  </div>
+
+  <div class="verdict wait" id="verdict">
+    <p class="big"><span id="vIcon">&#8987;</span> <span id="vText">Checking…</span></p>
+    <p class="sub" id="vSub">Asking your database what it has.</p>
+  </div>
+
+  <div class="card">
+    <h2>What was checked</h2>
+    <div id="checks">
+      <div class="row"><span class="mark">…</span><span class="what">Starting</span></div>
+    </div>
+  </div>
+
+  <div class="card" id="next">
+    <h2>What to do</h2>
+    <div id="nextBody">…</div>
+  </div>
+
+  <div class="card" id="testCard" hidden>
+    <h2>Try it</h2>
+    <p style="margin:0 0 12px;font-size:13.5px;color:var(--muted);">
+      The API is in place. Open the console with a key to call it for real.
+    </p>
+    <a class="btn primary" id="consoleLink" href="#">Open the API console</a>
+    <p class="who" id="keyNote"></p>
+  </div>
+
+  <p class="who">
+    <button class="btn" id="again">Check again</button>
+  </p>
+
+</div>
+
+<script>
+  /* The same two public values the app uses. The anon key is meant to be
+     public; it grants nothing on its own. */
+  var SUPABASE_URL      = "https://oswrhpvkhlpvhinsatwh.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zd3JocHZraGxwdmhpbnNhdHdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMDYxODcsImV4cCI6MjEwNTY4MjE4N30.--K15fOHPJK4iGYcQBLRvJIgg2Um7C94aWYLYvO_5CY";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var rows = [];
+
+  function add(ok, what, why) {
+    rows.push({ ok: ok, what: what, why: why || "" });
+    render();
+  }
+
+  function render() {
+    $("checks").innerHTML = rows.map(function (r) {
+      return '<div class="row ' + (r.ok === true ? "ok" : r.ok === false ? "no" : "") + '">' +
+        '<span class="mark">' + (r.ok === true ? "&#10003;" : r.ok === false ? "&#10007;" : "&hellip;") + '</span>' +
+        '<span class="what">' + r.what + (r.why ? '<div class="why">' + r.why + '</div>' : "") + '</span>' +
+      '</div>';
+    }).join("");
+  }
+
+  function post(endpoint, body) {
+    return fetch(SUPABASE_URL + "/rest/v1/rpc/" + endpoint, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    }).then(function (res) {
+      return res.text().then(function (t) {
+        var j = null; try { j = JSON.parse(t); } catch (e) {}
+        return { status: res.status, ok: res.ok, body: j, text: t };
+      });
+    });
+  }
+
+  function get(table) {
+    return fetch(SUPABASE_URL + "/rest/v1/" + table + "?select=*&limit=1", {
+      headers: { "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + SUPABASE_ANON_KEY }
+    }).then(function (res) {
+      return res.text().then(function (t) {
+        var j = null; try { j = JSON.parse(t); } catch (e) {}
+        return { status: res.status, ok: res.ok, body: j, text: t };
+      });
+    });
+  }
+
+  var MISSING = /Could not find the function|Could not find the table|PGRST202|PGRST205/i;
+
+  var FUNCTIONS = [
+    "api_docs", "api_me", "api_list_issues", "api_get_issue", "api_create_issue",
+    "api_stats", "api_update_issue", "api_delete_issue", "api_list_users"
+  ];
+
+  async function run() {
+    rows = [];
+    render();
+
+    $("verdict").className = "verdict wait";
+    $("vIcon").innerHTML = "&#8987;";
+    $("vText").textContent = "Checking\u2026";
+    $("vSub").textContent = "Asking your database what it has.";
+    $("testCard").hidden = true;
+
+    // ---- api_docs: the clearest single signal -----------------------------
+    var docs = await post("api_docs", {});
+    var installed = docs.ok;
+    add(installed,
+        "api_docs() answers",
+        installed ? "the API is describing itself" : "not installed yet - " + short(docs));
+
+    if (!installed) {
+      add(null, "The endpoints", "skipped, because api_docs is not there");
+      add(null, "The tables", "skipped, because api_docs is not there");
+      finish(false);
+      return;
+    }
+
+    // ---- each endpoint, probed without a valid key ------------------------
+    // A function that exists answers "invalid key"; one that does not gives
+    // "could not find the function". That is enough to tell them apart.
+    for (var i = 0; i < FUNCTIONS.length; i++) {
+      var name = FUNCTIONS[i];
+      if (name === "api_docs") continue;
+
+      var r = await post(name, { p_key: "itk_status_probe" });
+      var exists = !MISSING.test(r.text || "");
+      add(exists, name + "()",
+          exists ? (r.ok ? "answered" : "present - " + short(r)) : "missing");
+    }
+
+    // ---- the tables -------------------------------------------------------
+    var tables = ["api_keys", "webhooks", "webhook_deliveries"];
+    for (var t = 0; t < tables.length; t++) {
+      var g = await get(tables[t]);
+      var there = !MISSING.test(g.text || "");
+      add(there, tables[t] + " table",
+          there ? "present" : "missing");
+    }
+
+    finish(true);
+  }
+
+  function short(r) {
+    if (r.body && r.body.message) return r.body.message;
+    if (r.text) return r.text.slice(0, 110);
+    return "no response";
+  }
+
+  function finish(installed) {
+    var failed = rows.filter(function (r) { return r.ok === false; });
+
+    if (installed && failed.length === 0) {
+      $("verdict").className = "verdict good";
+      $("vIcon").innerHTML = "&#10003;";
+      $("vText").textContent = "The API is installed and working";
+      $("vSub").textContent = "All " + rows.length + " checks passed. Nothing is missing.";
+
+      $("testCard").hidden = false;
+      $("next").hidden = true;              // nothing to do
+      $("consoleLink").textContent = "Open the API console";
+      $("consoleLink").href = "api.html";
+      $("keyNote").innerHTML =
+        "You still need a key to call it. Make one in the app under " +
+        "<b>Settings \u2192 API keys</b>, then open the console with " +
+        "<code>api.html?key=itk_...</code>";
+      return;
+    }
+
+    if (installed) {
+      $("verdict").className = "verdict wait";
+      $("vIcon").innerHTML = "!";
+      $("vText").textContent = "Partly installed";
+      $("vSub").textContent = failed.length + " of " + rows.length + " checks failed. " +
+        "Running the setup SQL again fills in what is missing.";
+    } else {
+      $("verdict").className = "verdict bad";
+      $("vIcon").innerHTML = "&#10007;";
+      $("vText").textContent = "The API is not installed yet";
+      $("vSub").textContent = "Your database does not have it. The setup SQL adds it.";
+    }
+
+    $("next").hidden = false;
+    $("nextBody").innerHTML =
+      '<p style="margin:0 0 4px;font-size:13.5px;">' +
+        'Open the app, sign in as an administrator, and go to ' +
+        '<b>Settings \u2192 Database setup \u2192 Show the setup SQL</b>. ' +
+        'Copy it into the Supabase SQL editor and press Run. It is safe to run more than once, ' +
+        'and it will not touch the issues already on your board.' +
+      '</p>' +
+      '<ol>' +
+        '<li><a href="https://supabase.com/dashboard/project/oswrhpvkhlpvhinsatwh/sql/new" target="_blank" rel="noopener">Open the Supabase SQL editor</a></li>' +
+        '<li>Paste, and press <b>Run</b></li>' +
+        '<li>Come back here and press <b>Check again</b></li>' +
+      '</ol>' +
+      '<p class="who">Then make a key in <b>Settings \u2192 API keys</b> and open the console with it.</p>';
+  }
+
+  $("again").addEventListener("click", run);
+  run();
+</script>
+</body>
+</html>
