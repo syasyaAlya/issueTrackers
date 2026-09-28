@@ -12,6 +12,9 @@ supabase/.temp
 # Dependencies (not used by this project, but never commit them)
 node_modules
 
+# The throwaway database the API tests build
+tests/.pgdata
+
 # Editor / OS noise
 .DS_Store
 Thumbs.db

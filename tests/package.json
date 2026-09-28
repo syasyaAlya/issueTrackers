@@ -1,0 +1,13 @@
+{
+  "name": "issue-tracker-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tests for the Issue Tracker schema and REST API",
+  "scripts": {
+    "test": "node api.test.js",
+    "smoke": "powershell -ExecutionPolicy Bypass -File api-smoke.ps1"
+  },
+  "dependencies": {
+    "embedded-postgres": "18.4.0-beta.17"
+  }
+}

@@ -270,7 +270,59 @@ is unused, or the number looks wrong, revoke it.
 
 ---
 
-## 9. Limits and honest notes
+## 9. Testing it
+
+There are two ways, and the first needs nothing from you at all.
+
+### Offline — proves the SQL, needs no database
+
+```powershell
+cd tests
+npm install      # once; fetches a throwaway PostgreSQL
+npm test
+```
+
+It starts a temporary PostgreSQL, applies `supabase-schema.sql` to it and runs
+**39 checks** over the whole API — keys, both tiers, every endpoint, revoking,
+and a webhook. Nothing touches your project, and the database is deleted
+afterwards. If this is green, the SQL in this repository is sound.
+
+### Live — against your own project
+
+```powershell
+cd tests
+.\api-smoke.ps1 -Key itk_your_key
+```
+
+Reads the project URL and anon key out of `index.html`, so there is nothing to
+configure. It **only reads** unless you add `-Write`, which also creates an
+issue, updates it and deletes it again.
+
+```
+1. Is the API there?          api_docs answers, and lists the endpoints
+2. The key                    accepted, named, and what tier it is
+3. Reading                    list, filter, search, stats, fetch one
+4. What this key may do       the tier is refused or allowed, as it should be
+5. A made-up key is refused   api_me with nonsense says "Invalid or revoked"
+6. Writing                    only with -Write
+```
+
+If the SQL is missing it says so and stops, rather than printing a wall of
+errors. Full details in [`tests/README.md`](../tests/README.md).
+
+### In a browser
+
+```
+https://issue-trackers-bay.vercel.app/api.html?key=itk_your_key
+```
+
+The console reads `api_docs()` from the database, so what it shows is always
+the real API. It locks the endpoints the key cannot use, runs any of them, and
+writes out the matching `curl` command.
+
+---
+
+## 10. Limits and honest notes
 
 | | |
 |---|---|
@@ -292,7 +344,7 @@ Things worth knowing before you build on this:
 
 ---
 
-## 10. How it is built
+## 11. How it is built
 
 There is no server. Each endpoint is a database function, called through
 PostgREST:
