@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Issue Tracker API</title>
+<meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0e1016" media="(prefers-color-scheme: dark)" />
+<link rel="icon" href="./icon-192.png" />
+<style>
+  :root {
+    --bg:#f4f5f8; --surface:#fff; --surface-2:#f0f1f4; --border:#e3e5ea;
+    --text:#171a20; --muted:#6b7280; --accent:#4f46e5; --accent-soft:#eef0ff;
+    --done:#15803d; --done-soft:#e7f6ed; --danger:#dc2626; --high-soft:#fdeaea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0e1016; --surface:#171a22; --surface-2:#1e222c; --border:#2a2f3b;
+            --text:#e8eaf0; --muted:#9aa2b1; --accent:#8b8cf7; --accent-soft:#232544;
+            --done:#4ade80; --done-soft:#14301f; --danger:#f87171; --high-soft:#35191b; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:24px 18px 70px; }
+  .brand { display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+  .logo { width:38px; height:38px; border-radius:12px; flex:none; display:grid; place-items:center;
+          background:linear-gradient(135deg,#6366f1 0%,#7c5cf6 55%,#a855f7 100%);
+          box-shadow:0 2px 10px rgba(99,102,241,.35); }
+  .logo svg { width:38px; height:38px; }
+  .brand h1 { font-size:17px; margin:0; letter-spacing:-.2px; }
+  .brand p { margin:0; font-size:12.5px; color:var(--muted); }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px;
+          padding:18px 20px; margin:16px 0; box-shadow:0 1px 2px rgba(16,20,30,.05); }
+  h2 { font-size:14px; margin:0 0 4px; letter-spacing:-.1px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 14px; }
+  label { display:block; font-size:11.5px; font-weight:650; color:var(--muted);
+          text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
+  input, select, textarea {
+    width:100%; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:9px; padding:10px 12px; font:inherit; color:inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline:2px solid var(--accent); outline-offset:-1px; border-color:transparent; }
+  textarea { font:12.5px/1.5 ui-monospace, Menlo, Consolas, monospace; min-height:74px; resize:vertical; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .row > * { flex:1 1 180px; min-width:0; }
+  .row > .btn { flex:0 0 auto; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px;
+         border:1px solid var(--border); background:var(--surface); color:var(--text);
+         padding:9px 14px; border-radius:9px; font-size:14px; font-weight:550; cursor:pointer;
+         min-height:42px; white-space:nowrap; }
+  .btn:hover { background:var(--surface-2); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn:disabled { opacity:.55; cursor:default; }
+  pre { background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+        padding:13px; overflow:auto; max-height:340px; margin:0;
+        font:12.5px/1.55 ui-monospace, Menlo, Consolas, monospace; white-space:pre-wrap; word-break:break-word; }
+  .badge { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.05em;
+           text-transform:uppercase; padding:3px 8px; border-radius:999px;
+           background:var(--surface-2); color:var(--muted); }
+  .badge.admin { background:var(--accent-soft); color:var(--accent); }
+  .badge.user  { background:var(--done-soft); color:var(--done); }
+  .badge.locked { background:var(--high-soft); color:var(--danger); }
+  .msg { border-radius:10px; padding:10px 13px; font-size:13px; margin:12px 0 0; display:none; }
+  .msg.show { display:block; }
+  .msg.ok { background:var(--done-soft); color:var(--done); }
+  .msg.err { background:var(--high-soft); color:var(--danger); }
+  .eps { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+  .ep { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+        padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
+  .ep:last-child { border-bottom:0; }
+  .ep code { font:12.5px ui-monospace, Menlo, Consolas, monospace; font-weight:600; }
+  .ep .about { color:var(--muted); font-size:12.5px; flex:1 1 220px; }
+  .hint { font-size:12.5px; color:var(--muted); margin:10px 0 0; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 48 48"><path d="M12.96 25.44 20.88 32.88 35.76 15.84" fill="none"
+        stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+    </span>
+    <div>
+      <h1>Issue Tracker API</h1>
+      <p>Read and report issues from anywhere.</p>
+    </div>
+  </div>
+
+  <!-- the key, which is the whole of the login -->
+  <div class="card">
+    <h2>Your key</h2>
+    <p class="sub">Paste an API key. If someone sent you a link, it is already filled in.</p>
+    <div class="row">
+      <div style="flex:2 1 320px;">
+        <label for="key">API key</label>
+        <input id="key" type="text" spellcheck="false" placeholder="itk_..." />
+      </div>
+      <button class="btn primary" id="connect">Connect</button>
+    </div>
+    <div class="msg" id="whoMsg"></div>
+    <div id="who" hidden style="margin-top:14px;">
+      <div class="row" style="align-items:center;">
+        <div><span class="badge" id="whoRole">user</span></div>
+        <div style="flex:2 1 260px;">
+          <div style="font-size:13.5px;font-weight:600;" id="whoName"></div>
+          <div style="font-size:12.5px;color:var(--muted);" id="whoMeta"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- one call at a time -->
+  <div class="card">
+    <h2>Try an endpoint</h2>
+    <p class="sub">Everything the API can do. Where it asks for an id, use one from “List issues”.</p>
+
+    <div class="row">
+      <div style="flex:2 1 260px;">
+        <label for="ep">Endpoint</label>
+        <select id="ep"></select>
+      </div>
+      <button class="btn primary" id="run">Run</button>
+      <button class="btn" id="curlc">Copy as curl</button>
+    </div>
+
+    <div id="params" style="margin-top:14px;"></div>
+
+    <p class="hint" id="epAbout"></p>
+
+    <div class="msg" id="runMsg"></div>
+    <div style="margin-top:14px;">
+      <label>Response</label>
+      <pre id="out">Not run yet.</pre>
+    </div>
+  </div>
+
+  <!-- what exists, straight from the database so it cannot drift -->
+  <div class="card">
+    <h2>Endpoints</h2>
+    <p class="sub" id="epsSub">Loading…</p>
+    <ul class="eps" id="eps"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Using it from your own code</h2>
+    <p class="sub">
+      Every endpoint is a POST to <code>/rest/v1/rpc/&lt;endpoint&gt;</code> on the
+      project, with the anon key in <code>apikey</code> and your key in the body as
+      <code>p_key</code>. Keep your key on your server, never in a web page.
+    </p>
+    <pre id="sample"></pre>
+  </div>
+
+</div>
+
+<script>
+  /* Same two public values the app uses. The anon key is designed to be public;
+     it is your API key that decides what you may actually do. */
+  var SUPABASE_URL      = "https://oswrhpvkhlpvhinsatwh.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zd3JocHZraGxwdmhpbnNhdHdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMDYxODcsImV4cCI6MjEwNTY4MjE4N30.--K15fOHPJK4iGYcQBLRvJIgg2Um7C94aWYLYvO_5CY";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var docs = null;
+  var currentKey = "";
+
+  function say(node, text, kind) {
+    node.textContent = text || "";
+    node.className = "msg " + (kind || "err") + (text ? " show" : "");
+  }
+
+  /* Call one endpoint. The key travels in the body, because PostgREST needs the
+     Authorization header for its own anon key. */
+  function call(name, params) {
+    return fetch(SUPABASE_URL + "/rest/v1/rpc/" + name, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(params)
+    }).then(function (res) {
+      return res.text().then(function (text) {
+        var body;
+        try { body = JSON.parse(text); } catch (e) { body = text; }
+        return { status: res.status, ok: res.ok, body: body };
+      });
+    });
+  }
+
+  function show(r) {
+    $("out").textContent = JSON.stringify(r.body, null, 2);
+    if (r.ok) {
+      say($("runMsg"), "HTTP " + r.status, "ok");
+    } else {
+      var m = (r.body && (r.body.message || r.body.hint)) || "Request failed";
+      say($("runMsg"), "HTTP " + r.status + " — " + m, "err");
+    }
+  }
+
+  /* Each endpoint: what to ask for, and which fields to show. */
+  var PARAMS = {
+    api_me:            [],
+    api_list_issues:   [["p_status","status (none, pending, done)"],["p_priority","priority (low, medium, high)"],["p_q","search text"],["p_limit","how many (default 50)"],["p_offset","skip"]],
+    api_get_issue:     [["p_id","issue id"]],
+    api_create_issue:  [["p_title","title"],["p_description","description"],["p_priority","priority (low, medium, high)"]],
+    api_stats:         [],
+    api_update_issue:  [["p_id","issue id"],["p_status","status (none, pending, done)"],["p_priority","priority"],["p_note","message for the reporter"]],
+    api_delete_issue:  [["p_id","issue id"]],
+    api_list_users:    []
+  };
+
+  function buildParams() {
+    var name = $("ep").value;
+    var fields = PARAMS[name] || [];
+    var box = $("params");
+
+    if (!fields.length) {
+      box.innerHTML = '<p class="hint" style="margin:0;">This endpoint takes no arguments.</p>';
+      $("epAbout").textContent = aboutOf(name);
+      return;
+    }
+
+    box.innerHTML = '<div class="row">' + fields.map(function (f) {
+      return '<div><label for="' + f[0] + '">' + f[0] + '</label>' +
+             '<input id="' + f[0] + '" type="text" placeholder="' + f[1] + '" /></div>';
+    }).join("") + "</div>";
+
+    $("epAbout").textContent = aboutOf(name);
+  }
+
+  function aboutOf(name) {
+    if (!docs) return "";
+    for (var i = 0; i < docs.endpoints.length; i++) {
+      if (docs.endpoints[i].name === name) {
+        return docs.endpoints[i].tier === "admin"
+          ? docs.endpoints[i].about + "  (admin key only)"
+          : docs.endpoints[i].about;
+      }
+    }
+    return "";
+  }
+
+  function collect(name) {
+    var fields = PARAMS[name] || [];
+    var out = { p_key: currentKey };
+    fields.forEach(function (f) {
+      var field = $(f[0]);
+      var v = field ? field.value.trim() : "";
+      if (v !== "") out[f[0]] = v;
+    });
+    return out;
+  }
+
+  function curlFor(name, params) {
+    return "curl -X POST '" + SUPABASE_URL + "/rest/v1/rpc/" + name + "' \\\n" +
+           "  -H 'apikey: " + SUPABASE_ANON_KEY + "' \\\n" +
+           "  -H 'Authorization: Bearer " + SUPABASE_ANON_KEY + "' \\\n" +
+           "  -H 'Content-Type: application/json' \\\n" +
+           "  -d '" + JSON.stringify(params) + "'";
+  }
+
+  function renderEndpoints() {
+    if (!docs) return;
+    $("epsSub").textContent = docs.name + " version " + docs.version + " — " + docs.auth.tiers.user + "; admin keys: " + docs.auth.tiers.admin;
+    $("eps").innerHTML = docs.endpoints.map(function (e) {
+      return '<li class="ep">' +
+        '<code>' + e.name + '</code>' +
+        '<span class="badge ' + (e.tier === "admin" ? "locked" : "user") + '">' +
+          (e.tier === "admin" ? "admin" : e.tier) + '</span>' +
+        '<span class="about">' + e.about + '</span>' +
+      '</li>';
+    }).join("");
+  }
+
+  function showSample() {
+    $("sample").textContent = curlFor("api_list_issues",
+      { p_key: currentKey || "itk_your_key", p_status: "pending", p_limit: 10 });
+  }
+
+  function connect(key, quiet) {
+    currentKey = (key || "").trim();
+    if (!currentKey) { say($("whoMsg"), "Paste a key first.", "err"); return; }
+
+    say($("whoMsg"), "Checking…", "ok");
+    call("api_me", { p_key: currentKey }).then(function (r) {
+      if (!r.ok) {
+        $("who").hidden = true;
+        say($("whoMsg"), (r.body && r.body.message) || "That key was refused.", "err");
+        return;
+      }
+      var k = r.body.key;
+      $("who").hidden = false;
+      $("whoRole").textContent = k.role;
+      $("whoRole").className = "badge " + k.role;
+      $("whoName").textContent = k.name || "Untitled key";
+      $("whoMeta").textContent = k.prefix + "… · " + (k.requests || 0) + " calls" +
+        " · " + (k.role === "admin" ? "can do everything" : "can read and report");
+      if (!quiet) say($("whoMsg"), r.ok ? "Key accepted." : "", r.ok ? "ok" : "err");
+      showSample();
+      updateUngranted();
+    });
+  }
+
+  /* Endpoints this key cannot use are visibly locked. */
+  function updateUngranted() {
+    var role = $("whoRole").textContent;
+    var opts = $("ep").options;
+    for (var i = 0; i < opts.length; i++) {
+      var locked = false;
+      for (var j = 0; docs && j < docs.endpoints.length; j++) {
+        if (docs.endpoints[j].name === opts[i].value && docs.endpoints[j].tier === "admin" && role !== "admin") locked = true;
+      }
+      opts[i].disabled = locked;
+      opts[i].textContent = opts[i].value.replace(/^api_/, "") + (locked ? "  (admin only)" : "");
+    }
+  }
+
+  /* ---- wire it up ---- */
+  call("api_docs", {}).then(function (r) {
+    if (!r.ok) { $("epsSub").textContent = "Could not load the API description."; return; }
+    docs = r.body;
+    $("ep").innerHTML = docs.endpoints
+      .filter(function (e) { return e.name !== "api_docs"; })
+      .map(function (e) { return '<option value="' + e.name + '">' + e.name.replace(/^api_/, "") + '</option>'; })
+      .join("");
+    renderEndpoints();
+    buildParams();
+    showSample();
+
+    // A key in the link means the holder can start straight away.
+    var fromUrl = new URLSearchParams(location.search).get("key");
+    if (fromUrl) { $("key").value = fromUrl; connect(fromUrl, true); }
+  });
+
+  $("connect").addEventListener("click", function () { connect($("key").value); });
+  $("key").addEventListener("keydown", function (e) { if (e.key === "Enter") connect($("key").value); });
+  $("ep").addEventListener("change", buildParams);
+
+  $("run").addEventListener("click", function () {
+    var name = $("ep").value;
+    var btn = $("run");
+    btn.disabled = true;
+    say($("runMsg"), "Calling…", "ok");
+    call(name, collect(name)).then(function (r) {
+      btn.disabled = false;
+      show(r);
+      showSample();
+    }).catch(function (e) {
+      btn.disabled = false;
+      say($("runMsg"), String(e.message || e), "err");
+    });
+  });
+
+  $("curlc").addEventListener("click", function () {
+    var name = $("ep").value;
+    var text = curlFor(name, collect(name));
+    $("out").textContent = text;
+    say($("runMsg"), "curl command above — copy it.", "ok");
+  });
+</script>
+</body>
+</html>

@@ -17,6 +17,7 @@ cannot do, and the database (Row Level Security + triggers) rejects it anyway.
 | File | What it is |
 | --- | --- |
 | `index.html` | The whole app — login, dashboard, issues, users. Open it in a browser. |
+| `api.html` | The API console. Give someone a link with a key in it and they can try every endpoint. |
 | `supabase-schema.sql` | The database: tables, triggers and security policies. Paste it into Supabase. |
 | `supabase/` | The same schema as a migration, plus a Supabase setup guide. |
 | `PUBLISHING.md` | How to put it online for free — GitHub Pages or Vercel. |
@@ -34,6 +35,7 @@ cannot do, and the database (Row Level Security + triggers) rejects it anyway.
 | Document | What it covers |
 | --- | --- |
 | [`docs/FLOWCHARTS.md`](docs/FLOWCHARTS.md) | The whole system as flowcharts: the architecture, roles and permissions, and every process from sign-up to backups. |
+| [`docs/API.md`](docs/API.md) | The REST API: keys and tiers, every endpoint, webhooks, errors, and how to share access. The console for it lives at [`api.html`](api.html). |
 | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) | Every issue in this system that makes it slower than it could be, what each one costs, how to fix it, and which tool does the fixing. |
 | [`PUBLISHING.md`](PUBLISHING.md) | How to put it online for free. |
 | [`PRESENTATION.md`](PRESENTATION.md) | A slide-style overview. |
