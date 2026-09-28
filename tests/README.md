@@ -76,7 +76,47 @@ key, the tier, or the database.
 
 ---
 
-## 3. By hand, in a browser
+## 3. Apply the SQL with a connection string
+
+When the Supabase CLI is not logged in and you have no access token, this still
+works — it needs only the database connection string.
+
+```powershell
+cd tests
+npm install
+node run-sql.js "postgresql://postgres:PASSWORD@db.<ref>.supabase.co:5432/postgres"
+```
+
+The string is on the Supabase dashboard under **Project settings → Database →
+Connection string → URI**. Use the **Session pooler** one if the direct
+connection is not reachable from where you are; both work.
+
+It prints what the database has **before** and **after**, so you can see it
+did something:
+
+```
+Before:
+  issues table    : yes
+  api_keys table  : no
+  api_docs()      : no
+
+Running the schema (safe to repeat - it updates in place)...
+  PASS  the schema applied without error
+
+After:
+  PASS  api_keys table
+  PASS  webhooks table
+  PASS  webhook_deliveries table
+  PASS  api_docs()
+  PASS  10 API functions
+```
+
+It never prints your password back, it is safe to run twice, and it does not
+touch the issues already on the board.
+
+---
+
+## 4. By hand, in a browser
 
 The quickest sanity check of all:
 

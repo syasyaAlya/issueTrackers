@@ -5,9 +5,11 @@
   "description": "Tests for the Issue Tracker schema and REST API",
   "scripts": {
     "test": "node api.test.js",
-    "smoke": "powershell -ExecutionPolicy Bypass -File api-smoke.ps1"
+    "smoke": "powershell -ExecutionPolicy Bypass -File api-smoke.ps1",
+    "apply-sql": "node run-sql.js"
   },
   "dependencies": {
-    "embedded-postgres": "18.4.0-beta.17"
+    "embedded-postgres": "18.4.0-beta.17",
+    "pg": "^8.11.0"
   }
 }
