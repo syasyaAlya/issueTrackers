@@ -164,9 +164,22 @@
 
   var MISSING = /Could not find the function|Could not find the table|PGRST202|PGRST205/i;
 
+  /* Each endpoint needs its own probe arguments. Sending only p_key to one
+     that also wants an id makes PostgREST look for a function that was never
+     meant to exist, and a working endpoint gets reported as missing. */
+  var PROBE_KEY = "itk_status_probe";
+  var NO_SUCH_ID = "00000000-0000-0000-0000-000000000000";
+
   var FUNCTIONS = [
-    "api_docs", "api_me", "api_list_issues", "api_get_issue", "api_create_issue",
-    "api_stats", "api_update_issue", "api_delete_issue", "api_list_users"
+    ["api_docs",         {}],
+    ["api_me",           { p_key: PROBE_KEY }],
+    ["api_list_issues",  { p_key: PROBE_KEY }],
+    ["api_get_issue",    { p_key: PROBE_KEY, p_id: NO_SUCH_ID }],
+    ["api_create_issue", { p_key: PROBE_KEY, p_title: "probe" }],
+    ["api_stats",        { p_key: PROBE_KEY }],
+    ["api_update_issue", { p_key: PROBE_KEY, p_id: NO_SUCH_ID }],
+    ["api_delete_issue", { p_key: PROBE_KEY, p_id: NO_SUCH_ID }],
+    ["api_list_users",   { p_key: PROBE_KEY }]
   ];
 
   async function run() {
@@ -197,10 +210,11 @@
     // A function that exists answers "invalid key"; one that does not gives
     // "could not find the function". That is enough to tell them apart.
     for (var i = 0; i < FUNCTIONS.length; i++) {
-      var name = FUNCTIONS[i];
+      var name = FUNCTIONS[i][0];
+      var args = FUNCTIONS[i][1];
       if (name === "api_docs") continue;
 
-      var r = await post(name, { p_key: "itk_status_probe" });
+      var r = await post(name, args);
       var exists = !MISSING.test(r.text || "");
       add(exists, name + "()",
           exists ? (r.ok ? "answered" : "present - " + short(r)) : "missing");
