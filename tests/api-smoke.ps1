@@ -70,6 +70,8 @@ function Call-Api($endpoint, $params, [switch]$NoKey) {
       $sr = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
       $text = $sr.ReadToEnd()
     } catch {}
+    # PowerShell 5.1 leaves the body here when the stream is already consumed
+    if (-not $text -and $_.ErrorDetails) { $text = $_.ErrorDetails.Message }
     $parsed = $null
     try { $parsed = $text | ConvertFrom-Json } catch {}
     return @{ status = $code; ok = $false; body = $parsed; text = $text }

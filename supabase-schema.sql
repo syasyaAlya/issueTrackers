@@ -90,7 +90,7 @@ create or replace function public.is_admin()
 returns boolean
 language sql
 security definer
-set search_path = public
+set search_path = public, extensions
 stable
 as $$
   select exists (
@@ -117,7 +117,7 @@ create or replace function public.guard_issue_update()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if public.is_admin() then
@@ -156,7 +156,7 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   insert into public.profiles (id, email, full_name, role)
@@ -187,7 +187,7 @@ create or replace function public.guard_profile_role()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if new.role is distinct from old.role and not public.is_admin() then
@@ -215,7 +215,7 @@ create or replace function public.admin_delete_user(target uuid)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if not public.is_admin() then
@@ -381,7 +381,7 @@ create or replace function public.snapshot_issues(p_kind text default 'auto')
 returns uuid
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   new_id uuid;
@@ -412,7 +412,7 @@ create or replace function public.auto_snapshot()
 returns uuid
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if not coalesce((select auto_backup_enabled from public.app_settings limit 1), true) then
@@ -436,7 +436,7 @@ create or replace function public.auto_backup_on_change()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   perform public.auto_snapshot();
@@ -455,7 +455,7 @@ create or replace function public.create_backup()
 returns uuid
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if not public.is_admin() then
@@ -476,7 +476,7 @@ create or replace function public.restore_backup(p_id uuid)
 returns integer
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   n_restored integer := 0;
@@ -688,7 +688,7 @@ create or replace function public.api_role(p_key text)
 returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_role text;
@@ -726,7 +726,7 @@ create or replace function public.api_check(p_key text, p_need_admin boolean def
 returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_role text;
@@ -757,7 +757,7 @@ create or replace function public.create_api_key(p_name text default '', p_role 
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_key  text;
@@ -805,7 +805,7 @@ create or replace function public.revoke_api_key(p_id uuid)
 returns integer
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   n integer := 0;
@@ -882,7 +882,7 @@ create or replace function public.webhook_on_issue()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_event   text;
@@ -958,7 +958,7 @@ create or replace function public.api_me(p_key text)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   k record;
@@ -993,7 +993,7 @@ create or replace function public.api_list_issues(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_limit  integer := least(greatest(coalesce(p_limit, 50), 1), 200);
@@ -1038,7 +1038,7 @@ create or replace function public.api_get_issue(p_key text, p_id uuid)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v jsonb;
@@ -1070,7 +1070,7 @@ create or replace function public.api_create_issue(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_title text := trim(coalesce(p_title, ''));
@@ -1121,7 +1121,7 @@ create or replace function public.api_update_issue(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v jsonb;
@@ -1162,7 +1162,7 @@ create or replace function public.api_delete_issue(p_key text, p_id uuid)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   n integer := 0;
@@ -1185,7 +1185,7 @@ create or replace function public.api_stats(p_key text)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   perform public.api_check(p_key);
@@ -1206,7 +1206,7 @@ create or replace function public.api_list_users(p_key text)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v jsonb;
