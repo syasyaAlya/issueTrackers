@@ -13,10 +13,13 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { Client } = require('pg');
 
 const SCHEMA = path.resolve(__dirname, '..', 'supabase-schema.sql');
-const url = process.argv[2] || process.env.DATABASE_URL;
+const args = process.argv.slice(2);
+const WANT_KEYS = args.includes('--create-keys');
+const url = args.find(a => !a.startsWith('--')) || process.env.DATABASE_URL;
 
 function say(msg) { console.log(msg); }
 function ok(msg) { console.log('  PASS  ' + msg); }
@@ -120,14 +123,63 @@ function bad(msg) { console.log('  FAIL  ' + msg); }
       say('  (the existing board was not touched)');
     }
 
+    // ---- optionally hand out keys, so nothing has to be clicked ------------
+    if (WANT_KEYS) {
+      say('');
+      say('Creating keys...');
+
+      const live = await one("select count(*)::int v from public.api_keys where revoked_at is null");
+      if (live > 0) {
+        say('  ' + live + ' key(s) already exist - not making more.');
+        say('  (revoke the old ones in the app if you want fresh ones.)');
+      } else {
+        const make = async (name, role) => {
+          const key = 'itk_' + crypto.randomBytes(24).toString('hex');
+          await client.query(
+            `insert into public.api_keys (name, prefix, key_hash, role)
+             values ($1, $2, encode(digest($3, 'sha256'), 'hex'), $4)`,
+            [name, key.slice(0, 12), key, role]
+          );
+          return key;
+        };
+
+        const adminKey = await make('admin - full control', 'admin');
+        const userKey  = await make('shared with a friend', 'user');
+
+        say('');
+        say('==============================================');
+        say('  YOUR KEYS - copy them now');
+        say('==============================================');
+        say('');
+        say('  ADMIN (can change, delete, list accounts)');
+        say('    ' + adminKey);
+        say('');
+        say('  USER  (can read, search and report)');
+        say('    ' + userKey);
+        say('');
+        say('  Only the hash is stored. They are not shown again.');
+        say('');
+        say('  Browser console, straight in:');
+        say('    https://issue-trackers-bay.vercel.app/api.html?key=' + userKey);
+        say('');
+        say('  Or test them:');
+        say('    cd tests');
+        say('    .\\api-smoke.ps1 -Key ' + userKey);
+        say('    .\\api-smoke.ps1 -Key ' + adminKey + ' -Write');
+        say('');
+      }
+    }
+
     say('');
     say('==============================================');
     say('  Done. The API is in the database.');
     say('==============================================');
-    say('');
-    say('Next:');
-    say('  1. Open the app, Settings > API keys, create one and copy it');
-    say('  2. Test it:  cd tests && .\\api-smoke.ps1 -Key itk_your_key');
+    if (!WANT_KEYS) {
+      say('');
+      say('Next:');
+      say('  1. Open the app, Settings > API keys, create one and copy it');
+      say('  2. Test it:  cd tests && .\\api-smoke.ps1 -Key itk_your_key');
+    }
     say('');
   } catch (e) {
     bad('the database rejected it: ' + e.message);
