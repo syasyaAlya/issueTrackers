@@ -4,7 +4,8 @@ Read and report issues from another system, without signing in as a person.
 
 > **Base:** `POST https://<project>.supabase.co/rest/v1/rpc/<endpoint>`
 > **Console:** `api.html?key=<your key>` — a page that tries every endpoint for
-> you, in the browser.
+> you, in the browser. On the deployed site the short form `/api?key=...` works
+> too.
 
 ---
 
