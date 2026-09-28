@@ -50,8 +50,9 @@ function Check($name, $ok, $extra) {
 }
 function Section($t) { Say ""; Say $t "Cyan" }
 
-function Call-Api($endpoint, $params) {
-  $body = @{ p_key = $Key }
+function Call-Api($endpoint, $params, [switch]$NoKey) {
+  $body = @{}
+  if (-not $NoKey) { $body["p_key"] = $Key }
   if ($params) { $params.GetEnumerator() | ForEach-Object { $body[$_.Key] = $_.Value } }
   $json = $body | ConvertTo-Json -Compress
 
@@ -91,7 +92,7 @@ Say "  writing : $(if ($Write) { 'yes - this will create and delete a test issue
 
 # ---- does the API exist at all? --------------------------------------------
 Section "1. Is the API there?"
-$docs = Call-Api "api_docs" $null
+$docs = Call-Api "api_docs" $null -NoKey
 if (-not $docs.ok) {
   Check "api_docs answers" $false (MessageOf $docs)
   Say ""
