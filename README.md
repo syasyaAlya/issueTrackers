@@ -38,6 +38,7 @@ cannot do, and the database (Row Level Security + triggers) rejects it anyway.
 | [`docs/FLOWCHARTS.md`](docs/FLOWCHARTS.md) | The whole system as flowcharts: the architecture, roles and permissions, and every process from sign-up to backups. |
 | [`docs/API.md`](docs/API.md) | The REST API: keys and tiers, every endpoint, webhooks, errors, and how to share access. The console for it lives at [`api.html`](api.html). |
 | [`docs/API-SYSTEM.md`](docs/API-SYSTEM.md) | The whole API system on one page: every endpoint, function, table, trigger and webhook. |
+| [`docs/PANDUAN-API.md`](docs/PANDUAN-API.md) | Panduan langkah demi langkah dalam Bahasa Melayu: dari ambil anon key sampai guna dalam code. |
 | [`docs/PRESENTING.md`](docs/PRESENTING.md) | A two-minute demo of the API, with what to say and what to run. |
 | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) | Every issue in this system that makes it slower than it could be, what each one costs, how to fix it, and which tool does the fixing. |
 | [`PUBLISHING.md`](PUBLISHING.md) | How to put it online for free. |
