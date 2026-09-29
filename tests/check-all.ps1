@@ -212,8 +212,10 @@ if ($sw -match 'addEventListener\("push"') { Ok "and it can receive a push" } el
 if ($userKey -or $adminKey) {
   Head "7. Tidying up"
   try {
-    Sql "update public.api_keys set revoked_at = now() where name in ('check-all user','check-all admin') and revoked_at is null"
-    Ok "the two temporary keys were revoked"
+    # delete them outright: they exist only for this run, and leaving them
+    # behind clutters the key list in Settings
+    Sql "delete from public.api_keys where name in ('check-all user','check-all admin')"
+    Ok "the two temporary keys were removed"
   } catch { Warn "could not revoke the temporary keys" }
 }
 
