@@ -11,9 +11,19 @@ and the API's own `api_docs()` answer, not from memory.
 |---|---|
 | **Base** | `POST https://oswrhpvkhlpvhinsatwh.supabase.co/rest/v1/rpc/<endpoint>` |
 | **Status page** (no key) | https://issue-trackers-bay.vercel.app/api-status |
-| **Console** (needs a key) | https://issue-trackers-bay.vercel.app/api.html?key=… |
+| **Shared dashboard** (needs a key) | https://issue-trackers-bay.vercel.app/dashboard?key=… |
+| **Console** (needs a key) | https://issue-trackers-bay.vercel.app/api?key=… |
 | **Reference guide** | [API.md](API.md) |
-| **Tests** | `../tests/` — offline and live |
+| **Step by step, in Malay** | [PANDUAN-API.md](PANDUAN-API.md) |
+| **Tests** | `../tests/` — offline, live, and `check-all.ps1` for everything |
+
+**Dashboard or console?**
+
+| | Dashboard | Console |
+|---|---|---|
+| For | a person — a friend, a client | a developer |
+| Shows | the board: numbers, list, filters | JSON, every endpoint, curl |
+| An admin key can | change a status, delete, report | anything |
 
 There is no server. Every endpoint is a database function reached through the
 PostgREST endpoint Supabase already provides.
