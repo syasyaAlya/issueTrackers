@@ -1346,12 +1346,26 @@
                   border-radius:8px; padding:8px 10px;"></code>
             <button class="btn" id="apiKeyCopy">Copy key</button>
           </div>
-          <div class="card-row" style="gap:8px; margin-top:8px;">
+          <p style="margin:12px 0 4px; font-size:12.5px; color:var(--muted);">
+            <b>Console link</b> — for trying endpoints
+          </p>
+          <div class="card-row" style="gap:8px;">
             <input id="apiKeyShare" type="text" readonly
                    style="flex:1 1 220px; min-width:0; background:var(--surface); border:1px solid var(--border);
                           border-radius:8px; padding:8px 10px; font-size:12.5px;" />
-            <button class="btn" id="apiKeyCopyLink">Copy link</button>
-            <button class="btn" id="apiKeyOpen">Open console</button>
+            <button class="btn" id="apiKeyCopyLink">Copy</button>
+            <button class="btn" id="apiKeyOpen">Open</button>
+          </div>
+
+          <p style="margin:12px 0 4px; font-size:12.5px; color:var(--muted);">
+            <b>Dashboard link</b> — the one to send a friend
+          </p>
+          <div class="card-row" style="gap:8px;">
+            <input id="apiKeyDash" type="text" readonly
+                   style="flex:1 1 220px; min-width:0; background:var(--surface); border:1px solid var(--border);
+                          border-radius:8px; padding:8px 10px; font-size:12.5px;" />
+            <button class="btn" id="apiKeyCopyDash">Copy</button>
+            <button class="btn" id="apiKeyOpenDash">Open</button>
           </div>
         </div>
 
@@ -4771,6 +4785,7 @@ notify pgrst, 'reload schema';
       el("apiKeyName").value = "";
       el("apiKeyValue").textContent = made.key;
       el("apiKeyShare").value = redirectTo() + "api.html?key=" + encodeURIComponent(made.key);
+      el("apiKeyDash").value  = redirectTo() + "dashboard.html?key=" + encodeURIComponent(made.key);
       el("apiKeyNew").hidden = false;
       toast("Key created — copy it now");
       renderApiKeys();
@@ -4806,6 +4821,14 @@ notify pgrst, 'reload schema';
 
   if (el("apiKeyOpen")) el("apiKeyOpen").addEventListener("click", function () {
     window.open(el("apiKeyShare").value, "_blank", "noopener");
+  });
+
+  if (el("apiKeyCopyDash")) el("apiKeyCopyDash").addEventListener("click", function () {
+    copyText(el("apiKeyDash").value, "Dashboard link copied");
+  });
+
+  if (el("apiKeyOpenDash")) el("apiKeyOpenDash").addEventListener("click", function () {
+    window.open(el("apiKeyDash").value, "_blank", "noopener");
   });
 
   el("autoBackupToggle").addEventListener("change", function () {

@@ -18,6 +18,7 @@ cannot do, and the database (Row Level Security + triggers) rejects it anyway.
 | --- | --- |
 | `index.html` | The whole app — login, dashboard, issues, users. Open it in a browser. |
 | `api.html` | The API console. Give someone a link with a key in it and they can try every endpoint. |
+| `dashboard.html` | **The shareable dashboard.** Send a friend the link and they see the board — no account needed. |
 | `supabase-schema.sql` | The database: tables, triggers and security policies. Paste it into Supabase. |
 | `supabase/` | The same schema as a migration, plus a Supabase setup guide. |
 | `PUBLISHING.md` | How to put it online for free — GitHub Pages or Vercel. |

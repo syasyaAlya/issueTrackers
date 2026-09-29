@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Issue Tracker — shared view</title>
+<meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0e1016" media="(prefers-color-scheme: dark)" />
+<link rel="icon" href="./icon-192.png" />
+<style>
+  :root {
+    --bg:#f4f5f8; --surface:#fff; --surface-2:#f0f1f4; --border:#e3e5ea;
+    --text:#171a20; --muted:#6b7280; --accent:#4f46e5; --accent-soft:#eef0ff;
+    --done:#15803d; --done-soft:#e7f6ed; --pending:#b45309; --pending-soft:#fdf3e3;
+    --high:#dc2626; --high-soft:#fdeaea; --low:#0e7490;
+    --shadow:0 1px 2px rgba(16,20,30,.05), 0 8px 24px rgba(16,20,30,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0e1016; --surface:#171a22; --surface-2:#1e222c; --border:#2a2f3b;
+            --text:#e8eaf0; --muted:#9aa2b1; --accent:#8b8cf7; --accent-soft:#232544;
+            --done:#4ade80; --done-soft:#14301f; --pending:#fbbf24; --pending-soft:#33260f;
+            --high:#f87171; --high-soft:#35191b; --low:#22d3ee;
+            --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.35); }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  .wrap { max-width:1080px; margin:0 auto; padding:24px 18px 70px; }
+
+  /* ---- header ---- */
+  .top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:22px; }
+  .logo { width:40px; height:40px; border-radius:12px; flex:none; display:grid; place-items:center;
+          background:linear-gradient(135deg,#6366f1 0%,#7c5cf6 55%,#a855f7 100%);
+          box-shadow:0 2px 10px rgba(99,102,241,.35); }
+  .logo svg { width:40px; height:40px; }
+  .top h1 { font-size:19px; margin:0; letter-spacing:-.2px; }
+  .top p { margin:1px 0 0; font-size:12.5px; color:var(--muted); }
+  .who { margin-left:auto; display:flex; align-items:center; gap:9px; }
+  .badge { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.05em;
+           text-transform:uppercase; padding:4px 10px; border-radius:999px;
+           background:var(--surface-2); color:var(--muted); }
+  .badge.admin { background:var(--accent-soft); color:var(--accent); }
+  .badge.user  { background:var(--done-soft); color:var(--done); }
+
+  /* ---- stat cards ---- */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+  .stat { background:var(--surface); border:1px solid var(--border); border-radius:14px;
+          padding:16px 18px; box-shadow:var(--shadow); }
+  .stat .n { font-size:30px; font-weight:750; line-height:1.1; font-variant-numeric:tabular-nums; }
+  .stat .l { font-size:11.5px; color:var(--muted); text-transform:uppercase;
+             letter-spacing:.06em; margin-top:3px; }
+  .stat.pending .n { color:var(--pending); }
+  .stat.done    .n { color:var(--done); }
+  .stat.high    .n { color:var(--high); }
+  .stat.none    .n { color:var(--muted); }
+
+  /* ---- controls ---- */
+  .bar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .bar input, .bar select { background:var(--surface); border:1px solid var(--border);
+                            border-radius:10px; padding:11px 13px; color:inherit; font:inherit; min-height:44px; }
+  .bar input { flex:1 1 240px; min-width:0; }
+  .bar select { flex:0 0 auto; }
+
+  /* ---- list ---- */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px;
+          box-shadow:var(--shadow); overflow:hidden; }
+  .item { display:flex; gap:14px; align-items:flex-start; padding:15px 18px;
+          border-bottom:1px solid var(--border); }
+  .item:last-child { border-bottom:0; }
+  .item .main { flex:1; min-width:0; }
+  .item .t { font-weight:600; font-size:14.5px; word-break:break-word; }
+  .item .d { color:var(--muted); font-size:12.5px; margin-top:3px; word-break:break-word; }
+  .item .m { color:var(--muted); font-size:11.5px; margin-top:6px; }
+  .item.done .t { color:var(--muted); text-decoration:line-through; }
+  .pill { display:inline-flex; align-items:center; font-size:11.5px; font-weight:650;
+          padding:4px 10px; border-radius:999px; white-space:nowrap; text-transform:capitalize; }
+  .pill.pending { background:var(--pending-soft); color:var(--pending); }
+  .pill.done    { background:var(--done-soft); color:var(--done); }
+  .pill.none    { background:var(--surface-2); color:var(--muted); }
+  .prio { font-size:11px; font-weight:650; padding:3px 8px; border-radius:999px;
+          border:1px solid var(--border); color:var(--muted); text-transform:capitalize; }
+  .prio.high { color:var(--high); border-color:color-mix(in srgb, var(--high) 45%, transparent); }
+  .prio.medium { color:var(--pending); border-color:color-mix(in srgb, var(--pending) 45%, transparent); }
+  .prio.low { color:var(--low); border-color:color-mix(in srgb, var(--low) 45%, transparent); }
+
+  .note { text-align:center; padding:52px 20px; color:var(--muted); }
+  .foot { margin-top:18px; font-size:12.5px; color:var(--muted); text-align:center; }
+  a { color:var(--accent); }
+
+  .msg { border-radius:10px; padding:12px 15px; font-size:13.5px; margin:0 0 18px; display:none; }
+  .msg.show { display:block; }
+  .msg.err { background:var(--high-soft); color:var(--high); }
+  .msg.ok { background:var(--done-soft); color:var(--done); }
+
+  @media (max-width:620px) {
+    .item { flex-wrap:wrap; }
+    .stat .n { font-size:26px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 48 48"><path d="M12.96 25.44 20.88 32.88 35.76 15.84" fill="none"
+        stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+    </span>
+    <div>
+      <h1>Issue Tracker</h1>
+      <p id="sub">Shared view</p>
+    </div>
+    <div class="who" id="who" hidden>
+      <span class="badge" id="role">user</span>
+      <span style="font-size:12.5px;color:var(--muted);" id="keyName"></span>
+    </div>
+  </div>
+
+  <div class="msg err" id="msg"></div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="bar">
+    <input id="q" type="search" placeholder="Search issues…" />
+    <select id="status">
+      <option value="">All statuses</option>
+      <option value="none">None</option>
+      <option value="pending">Pending</option>
+      <option value="done">Done</option>
+    </select>
+    <select id="priority">
+      <option value="">All priorities</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+  </div>
+
+  <div class="card" id="list">
+    <div class="note">Loading…</div>
+  </div>
+
+  <p class="foot" id="foot"></p>
+
+</div>
+
+<script>
+  /* Same two public values the app uses. Your API key does the real work. */
+  var SUPABASE_URL      = "https://oswrhpvkhlpvhinsatwh.supabase.co";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zd3JocHZraGxwdmhpbnNhdHdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMDYxODcsImV4cCI6MjEwNTY4MjE4N30.--K15fOHPJK4iGYcQBLRvJIgg2Um7C94aWYLYvO_5CY";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = new URLSearchParams(location.search).get("key") || "";
+  var ROLE = "user";
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+    });
+  }
+
+  function timeAgo(ts) {
+    if (!ts) return "";
+    var d = new Date(ts);
+    var s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 45) return "just now";
+    var m = Math.floor(s / 60); if (m < 60) return m + "m ago";
+    var h = Math.floor(m / 60); if (h < 24) return h + "h ago";
+    var dd = Math.floor(h / 24); if (dd < 30) return dd + "d ago";
+    return d.toLocaleDateString();
+  }
+
+  function api(endpoint, params) {
+    var body = { p_key: KEY };
+    if (params) for (var k in params) body[k] = params[k];
+
+    return fetch(SUPABASE_URL + "/rest/v1/rpc/" + endpoint, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    }).then(function (res) {
+      return res.json().then(function (j) {
+        if (!res.ok) throw new Error(j.message || "request failed");
+        return j;
+      });
+    });
+  }
+
+  function say(text) {
+    var m = $("msg");
+    m.textContent = text || "";
+    m.className = "msg err" + (text ? " show" : "");
+  }
+
+  /* ---- who am I -------------------------------------------------------- */
+  function loadWho() {
+    return api("api_me").then(function (r) {
+      var k = r.key;
+      ROLE = k.role;
+      $("who").hidden = false;
+      $("role").textContent = k.role;
+      $("role").className = "badge " + k.role;
+      $("keyName").textContent = k.name || "shared key";
+      $("sub").textContent = k.role === "admin"
+        ? "Shared view · full access"
+        : "Shared view · read only";
+      $("foot").innerHTML =
+        "Signed in with the API key <b>" + esc(k.prefix) + "…</b> · " +
+        k.requests + " call" + (k.requests === 1 ? "" : "s") + "<br>" +
+        "This page reads everything through the REST API — no account needed.";
+    });
+  }
+
+  /* ---- the numbers ----------------------------------------------------- */
+  function loadStats() {
+    return api("api_stats").then(function (r) {
+      var d = r.data;
+      $("stats").innerHTML =
+        card("", d.total, "Total issues") +
+        card("pending", d.pending, "Pending") +
+        card("done", d.done, "Done") +
+        card("none", d.none, "No status") +
+        card("high", d.high, "Open high priority");
+    });
+  }
+
+  function card(cls, n, label) {
+    return '<div class="stat ' + cls + '"><div class="n">' + n +
+           '</div><div class="l">' + label + '</div></div>';
+  }
+
+  /* ---- the list -------------------------------------------------------- */
+  var timer = null;
+  function loadList() {
+    var params = { p_limit: 200 };
+    if ($("status").value)   params.p_status   = $("status").value;
+    if ($("priority").value) params.p_priority = $("priority").value;
+    if ($("q").value.trim()) params.p_q        = $("q").value.trim();
+
+    return api("api_list_issues", params).then(function (r) {
+      if (!r.data.length) {
+        $("list").innerHTML = '<div class="note">No issues match that.</div>';
+        return;
+      }
+      $("list").innerHTML = r.data.map(function (it) {
+        return '<div class="item ' + (it.status === "done" ? "done" : "") + '">' +
+          '<div class="main">' +
+            '<div class="t">' + esc(it.title) + '</div>' +
+            (it.description ? '<div class="d">' + esc(it.description) + '</div>' : "") +
+            '<div class="m">' +
+              esc(it.created_by_email || "unknown") +
+              ' · reported ' + esc(timeAgo(it.created_at)) +
+              (it.updated_at && it.updated_at !== it.created_at
+                 ? ' · updated ' + esc(timeAgo(it.updated_at)) : "") +
+            '</div>' +
+          '</div>' +
+          '<span class="prio ' + esc(it.priority) + '">' + esc(it.priority) + '</span>' +
+          '<span class="pill ' + esc(it.status) + '">' +
+            (it.status === "none" ? "no status" : esc(it.status)) + '</span>' +
+        '</div>';
+      }).join("");
+      $("foot").innerHTML += "";
+    });
+  }
+
+  function refreshAll() {
+    return loadList();
+  }
+
+  /* ---- start ----------------------------------------------------------- */
+  if (!KEY) {
+    say("No key in the link. Ask for a link that ends with ?key=itk_... — " +
+        "or paste one on the API console page.");
+    $("list").innerHTML = '<div class="note">Nothing to show.</div>';
+  } else {
+    loadWho()
+      .then(loadStats)
+      .then(loadList)
+      .catch(function (e) {
+        say("This link did not work: " + e.message +
+            "   — the key may have been revoked, or the API is not set up yet.");
+        $("list").innerHTML = '<div class="note">Nothing to show.</div>';
+      });
+
+    $("q").addEventListener("input", function () {
+      clearTimeout(timer);
+      timer = setTimeout(refreshAll, 250);
+    });
+    $("status").addEventListener("change", refreshAll);
+    $("priority").addEventListener("change", refreshAll);
+  }
+</script>
+</body>
+</html>
