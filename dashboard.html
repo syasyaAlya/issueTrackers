@@ -92,6 +92,28 @@
   .msg.err { background:var(--high-soft); color:var(--high); }
   .msg.ok { background:var(--done-soft); color:var(--done); }
 
+  /* ---- controls an admin key gets ---- */
+  .btn { display:inline-flex; align-items:center; justify-content:center;
+         border:1px solid var(--border); background:var(--surface); color:var(--text);
+         padding:11px 15px; border-radius:10px; font:inherit; font-size:14px;
+         font-weight:550; cursor:pointer; min-height:44px; white-space:nowrap; }
+  .btn:hover { background:var(--surface-2); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .setstatus { background:var(--surface-2); border:1px solid var(--border); color:inherit;
+               border-radius:9px; padding:7px 9px; font:inherit; font-size:12.5px;
+               text-transform:capitalize; min-height:38px; }
+  .xbtn { border:1px solid var(--border); background:var(--surface); color:var(--high);
+          border-radius:9px; width:38px; height:38px; font-size:13px; cursor:pointer; flex:none; }
+  .xbtn:hover { background:var(--high-soft); }
+
+  .hintline { font-size:12.5px; color:var(--muted); margin:-4px 0 14px; }
+
+  .toasts { position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+            display:flex; flex-direction:column; gap:8px; align-items:center; z-index:50; }
+  .toast { background:var(--text); color:var(--bg); padding:10px 17px; border-radius:999px;
+           font-size:13.5px; font-weight:550; box-shadow:var(--shadow); max-width:90vw; }
+
   @media (max-width:620px) {
     .item { flex-wrap:wrap; }
     .stat .n { font-size:26px; }
@@ -134,7 +156,10 @@
       <option value="medium">Medium</option>
       <option value="low">Low</option>
     </select>
+    <button class="btn primary" id="newBtn" hidden>+ Report an issue</button>
   </div>
+
+  <p class="hintline" id="hint"></p>
 
   <div class="card" id="list">
     <div class="note">Loading…</div>
@@ -152,6 +177,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var KEY = new URLSearchParams(location.search).get("key") || "";
   var ROLE = "user";
+  var CAN_EDIT = false;      // an admin key may change and delete
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -201,17 +227,23 @@
     return api("api_me").then(function (r) {
       var k = r.key;
       ROLE = k.role;
+      CAN_EDIT = (k.role === "admin");
       $("who").hidden = false;
       $("role").textContent = k.role;
       $("role").className = "badge " + k.role;
       $("keyName").textContent = k.name || "shared key";
-      $("sub").textContent = k.role === "admin"
-        ? "Shared view · full access"
+      $("sub").textContent = CAN_EDIT
+        ? "Shared view · can change and delete"
         : "Shared view · read only";
       $("foot").innerHTML =
         "Signed in with the API key <b>" + esc(k.prefix) + "…</b> · " +
         k.requests + " call" + (k.requests === 1 ? "" : "s") + "<br>" +
         "This page reads everything through the REST API — no account needed.";
+      // an admin key gets the controls
+      $("newBtn").hidden = false;
+      $("hint").textContent = CAN_EDIT
+        ? "This is an admin key: you can change a status, delete, and report."
+        : "This is a user key: you can read, search and report. Changing a status needs an admin key.";
     });
   }
 
@@ -235,6 +267,25 @@
 
   /* ---- the list -------------------------------------------------------- */
   var timer = null;
+
+  function toast(msg) {
+    var wrap = document.querySelector(".toasts");
+    if (!wrap) {
+      wrap = document.createElement("div");
+      wrap.className = "toasts";
+      document.body.appendChild(wrap);
+    }
+    var t = document.createElement("div");
+    t.className = "toast";
+    t.textContent = msg;
+    wrap.appendChild(t);
+    setTimeout(function () { t.remove(); }, 2600);
+  }
+
+  function reload() {
+    return loadStats().then(loadList);
+  }
+
   function loadList() {
     var params = { p_limit: 200 };
     if ($("status").value)   params.p_status   = $("status").value;
@@ -247,6 +298,17 @@
         return;
       }
       $("list").innerHTML = r.data.map(function (it) {
+        // an admin key gets a status control and a delete button
+        var controls = CAN_EDIT
+          ? '<select class="setstatus" data-id="' + esc(it.id) + '" data-prev="' + esc(it.status) + '">' +
+              ["none", "pending", "done"].map(function (s) {
+                return '<option value="' + s + '"' + (it.status === s ? " selected" : "") + '>' +
+                       (s === "none" ? "no status" : s) + '</option>';
+              }).join("") +
+            '</select>' +
+            '<button class="xbtn" data-del="' + esc(it.id) + '" title="Delete for good">&#10005;</button>'
+          : "";
+
         return '<div class="item ' + (it.status === "done" ? "done" : "") + '">' +
           '<div class="main">' +
             '<div class="t">' + esc(it.title) + '</div>' +
@@ -261,9 +323,9 @@
           '<span class="prio ' + esc(it.priority) + '">' + esc(it.priority) + '</span>' +
           '<span class="pill ' + esc(it.status) + '">' +
             (it.status === "none" ? "no status" : esc(it.status)) + '</span>' +
+          controls +
         '</div>';
       }).join("");
-      $("foot").innerHTML += "";
     });
   }
 
@@ -292,6 +354,39 @@
     });
     $("status").addEventListener("change", refreshAll);
     $("priority").addEventListener("change", refreshAll);
+
+    /* ---- what an admin key can do -------------------------------------- */
+
+    // change a status straight from the list
+    $("list").addEventListener("change", function (e) {
+      var sel = e.target.closest("select[data-id]");
+      if (!sel) return;
+      var id = sel.dataset.id;
+      sel.disabled = true;
+      api("api_update_issue", { p_id: id, p_status: sel.value })
+        .then(function () { toast("Status changed to " + sel.value); return reload(); })
+        .catch(function (err) { sel.value = sel.dataset.prev; toast(err.message); })
+        .then(function () { sel.disabled = false; });
+    });
+
+    // delete for good
+    $("list").addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-del]");
+      if (!btn) return;
+      if (!confirm("Delete this issue for good?\n\nThis cannot be undone.")) return;
+      api("api_delete_issue", { p_id: btn.dataset.del })
+        .then(function () { toast("Deleted"); return reload(); })
+        .catch(function (err) { toast(err.message); });
+    });
+
+    // report a new one
+    $("newBtn").addEventListener("click", function () {
+      var title = prompt("What is the issue?");
+      if (!title || !title.trim()) return;
+      api("api_create_issue", { p_title: title.trim(), p_priority: "medium" })
+        .then(function () { toast("Reported — it starts with no status"); return reload(); })
+        .catch(function (err) { toast(err.message); });
+    });
   }
 </script>
 </body>
