@@ -298,7 +298,8 @@
       $("whoName").textContent = k.name || "Untitled key";
       $("whoMeta").textContent = k.prefix + "… · " + (k.requests || 0) + " calls" +
         " · " + (k.role === "admin" ? "can do everything" : "can read and report");
-      if (!quiet) say($("whoMsg"), r.ok ? "Key accepted." : "", r.ok ? "ok" : "err");
+      if (r.ok) say($("whoMsg"), "Key accepted.", "ok");
+      else say($("whoMsg"), "", "err");
       showSample();
       updateUngranted();
     });
