@@ -1,7 +1,41 @@
 # Tests
 
-Two ways to check the REST API. One needs nothing but Node, the other checks
-your real project.
+Two ways to check the API, and one that checks the lot. The last one needs
+nothing but the Supabase CLI being logged in.
+
+---
+
+## 0. Check everything at once — this is the one you want
+
+```powershell
+cd tests
+.\check-all.ps1
+```
+
+It checks the database, the API, the app and the installable bits, and prints a
+PASS or FAIL for each. **No arguments.** It mints two temporary keys, tests with
+them, and revokes them again, so it leaves nothing behind.
+
+```
+1. Can we reach the database?     CLI logged in
+2. The database schema            7 tables, 13 functions, 5 triggers,
+                                  RLS on, auto-backup on, snapshots stored
+3. Two temporary keys             created
+4. The API over HTTPS             api_docs, user key, listing, stats,
+                                  tier refused where it should be,
+                                  admin key, accounts, create/change/delete,
+                                  a made-up key refused
+5. The app and its files          the app, /api, /api-status, manifest,
+                                  service worker, icons
+6. Installable on a phone         standalone, 192, 512, maskable, start url,
+                                  fetch handler, push handler
+7. Tidying up                     temporary keys revoked
+```
+
+Expected: **`ALL GOOD - 33 checks passed`**
+
+A `FAIL` line always says what came back. A `WARN` is something worth knowing
+that does not break anything - backups switched off, no snapshots yet.
 
 ---
 

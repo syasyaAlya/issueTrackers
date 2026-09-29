@@ -24,7 +24,7 @@ cannot do, and the database (Row Level Security + triggers) rejects it anyway.
 | `vercel.json` | Ready-made Vercel config (static site, no build step). |
 | `steps/` | Older tutorial versions of the tracker, kept for reference. |
 | `docs/` | `FLOWCHARTS.md` (how it works), `API.md` (the REST API) and `PERFORMANCE.md` (what is slow and how to fix it). |
-| `tests/` | Two ways to check the API: offline against a throwaway PostgreSQL, or live against your project. |
+| `tests/` | `check-all.ps1` checks the whole system in one go. Also an offline API test and a live smoke test. |
 
 `index.html` is also its own setup guide: the **Connect Supabase** button
 (banner or setup panel) shows the same SQL with a copy button.
